@@ -1,18 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { FiSearch, FiFilter, FiMapPin, FiClock, FiDollarSign, FiBriefcase } from 'react-icons/fi';
+import {
+    HiOutlineSearch,
+    HiOutlineFilter,
+    HiOutlineLocationMarker,
+    HiOutlineClock,
+    HiOutlineBriefcase,
+    HiOutlineChevronLeft,
+    HiOutlineChevronRight,
+    HiOutlineStar
+} from 'react-icons/hi';
 import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export default function BrowseProjects() {
     const [projects, setProjects] = useState([]);
+    const [trendingProjects, setTrendingProjects] = useState([]);
+    const [bestMatchProjects, setBestMatchProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
     const [minBudget, setMinBudget] = useState('');
     const [maxBudget, setMaxBudget] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+    const carouselRef = useRef(null);
 
     const categories = [
         'All Categories',
@@ -29,6 +42,8 @@ export default function BrowseProjects() {
 
     useEffect(() => {
         fetchProjects();
+        fetchTrendingProjects();
+        fetchBestMatches();
     }, [selectedCategory, minBudget, maxBudget]);
 
     const fetchProjects = async () => {
@@ -59,9 +74,39 @@ export default function BrowseProjects() {
         }
     };
 
+    const fetchTrendingProjects = async () => {
+        try {
+            const url = `${API_BASE_URL}/api/projects?status=open&limit=6`;
+            const response = await axios.get(url);
+            setTrendingProjects(response.data.projects || []);
+        } catch (error) {
+            console.error('Error fetching trending projects:', error);
+        }
+    };
+
+    const fetchBestMatches = async () => {
+        try {
+            const url = `${API_BASE_URL}/api/projects?status=open&limit=3`;
+            const response = await axios.get(url);
+            setBestMatchProjects(response.data.projects || []);
+        } catch (error) {
+            console.error('Error fetching best matches:', error);
+        }
+    };
+
     const handleSearch = (e) => {
         e.preventDefault();
         fetchProjects();
+    };
+
+    const scrollCarousel = (direction) => {
+        if (carouselRef.current) {
+            const scrollAmount = 350;
+            carouselRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
     };
 
     const getTimeSince = (date) => {
@@ -85,181 +130,291 @@ export default function BrowseProjects() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-7xl mx-auto px-6 py-12">
-                {/* Header */}
+        <div className="min-h-screen bg-white">
+            <div className="max-w-6xl mx-auto px-8 py-10">
+                {/* Header with Search */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-8"
                 >
-                    <h1 className="text-4xl font-bold text-gray-800 mb-2">Browse Projects</h1>
-                    <p className="text-gray-600">Find your next opportunity from {projects.length} open projects</p>
+                    <h1 className="text-3xl font-light text-gray-700 mb-6">Explore Projects</h1>
+
+                    {/* Search Bar */}
+                    <form onSubmit={handleSearch} className="flex gap-3">
+                        <div className="flex-1 relative">
+                            <HiOutlineSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search projects..."
+                                className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:border-green-600 focus:outline-none font-light"
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="px-4 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:border-gray-300 transition"
+                            title="Filters"
+                        >
+                            <HiOutlineFilter size={18} />
+                        </button>
+                        <button
+                            type="submit"
+                            className="px-4 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                            title="Search"
+                        >
+                            <HiOutlineSearch size={18} />
+                        </button>
+                    </form>
                 </motion.div>
 
-                {/* Search and Filters */}
+                {/* Filters Panel */}
+                {showFilters && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mb-8 pb-6 border-b border-gray-100"
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-2 font-light">Category</label>
+                                <select
+                                    value={selectedCategory}
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-green-600 focus:outline-none font-light"
+                                >
+                                    {categories.map((cat) => (
+                                        <option key={cat} value={cat === 'All Categories' ? '' : cat}>
+                                            {cat}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-2 font-light">Min Budget (₹)</label>
+                                <input
+                                    type="number"
+                                    value={minBudget}
+                                    onChange={(e) => setMinBudget(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-green-600 focus:outline-none font-light"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 mb-2 font-light">Max Budget (₹)</label>
+                                <input
+                                    type="number"
+                                    value={maxBudget}
+                                    onChange={(e) => setMaxBudget(e.target.value)}
+                                    placeholder="Any"
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-green-600 focus:outline-none font-light"
+                                />
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Trending Projects Carousel */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="bg-white rounded-lg border border-gray-200 p-6 mb-8"
+                    className="mb-10"
                 >
-                    {/* Search Bar */}
-                    <form onSubmit={handleSearch} className="mb-6">
-                        <div className="flex gap-3">
-                            <div className="flex-1 relative">
-                                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                <input
-                                    type="text"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    placeholder="Search projects..."
-                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
-                                />
-                            </div>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-light text-gray-700">Trending Projects</h2>
+                        <div className="flex gap-2">
                             <button
-                                type="submit"
-                                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                                onClick={() => scrollCarousel('left')}
+                                className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                             >
-                                Search
+                                <HiOutlineChevronLeft size={16} className="text-gray-600" />
+                            </button>
+                            <button
+                                onClick={() => scrollCarousel('right')}
+                                className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                            >
+                                <HiOutlineChevronRight size={16} className="text-gray-600" />
                             </button>
                         </div>
-                    </form>
-
-                    {/* Filters */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Category Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                <FiFilter className="inline mr-1" /> Category
-                            </label>
-                            <select
-                                value={selectedCategory}
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                    </div>
+                    <div
+                        ref={carouselRef}
+                        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth"
+                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                    >
+                        {trendingProjects.map((project) => (
+                            <Link
+                                key={project._id}
+                                to={`/projects/${project._id}`}
+                                className="flex-shrink-0 w-80 border border-gray-100 rounded-lg p-4 hover:border-gray-200 hover:bg-gray-50/50 transition-all"
                             >
-                                {categories.map((cat) => (
-                                    <option key={cat} value={cat === 'All Categories' ? '' : cat}>
-                                        {cat}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Min Budget */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Min Budget (₹)
-                            </label>
-                            <input
-                                type="number"
-                                value={minBudget}
-                                onChange={(e) => setMinBudget(e.target.value)}
-                                placeholder="0"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
-                            />
-                        </div>
-
-                        {/* Max Budget */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Max Budget (₹)
-                            </label>
-                            <input
-                                type="number"
-                                value={maxBudget}
-                                onChange={(e) => setMaxBudget(e.target.value)}
-                                placeholder="Any"
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
-                            />
-                        </div>
+                                <h3 className="text-base font-light text-gray-700 mb-2 line-clamp-1">
+                                    {project.title}
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
+                                    {project.description}
+                                </p>
+                                <div className="flex items-center justify-between text-xs text-gray-400 font-light">
+                                    <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-md">
+                                        {project.category}
+                                    </span>
+                                    <span>
+                                        ₹{project.budget.min.toLocaleString()}+
+                                    </span>
+                                </div>
+                            </Link>
+                        ))}
                     </div>
                 </motion.div>
 
-                {/* Projects List */}
-                {loading ? (
-                    <div className="text-center py-12">
-                        <div className="inline-block w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                        <p className="text-gray-600 mt-4">Loading projects...</p>
-                    </div>
-                ) : projects.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-                        <FiBriefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                        <p className="text-gray-600 font-medium mb-1">No projects found</p>
-                        <p className="text-sm text-gray-500">Try adjusting your filters</p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {projects.map((project, index) => (
-                            <motion.div
-                                key={project._id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                            >
+                {/* Best Matching Projects */}
+                {bestMatchProjects.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="mb-10"
+                    >
+                        <div className="flex items-center gap-2 mb-4">
+                            <HiOutlineStar className="text-green-600" size={18} />
+                            <h2 className="text-lg font-light text-gray-700">Best Matches for You</h2>
+                        </div>
+                        <div className="space-y-3">
+                            {bestMatchProjects.map((project) => (
                                 <Link
+                                    key={project._id}
                                     to={`/projects/${project._id}`}
-                                    className="block bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md hover:border-green-300 transition-all duration-300"
+                                    className="block border border-green-100 bg-green-50/30 rounded-lg p-5 hover:border-green-200 hover:bg-green-50/50 transition-all"
                                 >
-                                    <div className="flex justify-between items-start mb-4">
+                                    <div className="flex justify-between items-start mb-3">
                                         <div className="flex-1">
-                                            <h3 className="text-xl font-semibold text-gray-800 mb-2 hover:text-green-600 transition">
+                                            <h3 className="text-lg font-light text-gray-700 mb-2 hover:text-green-600 transition">
                                                 {project.title}
                                             </h3>
-                                            <p className="inline-block px-3 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full">
+                                            <span className="inline-block px-2.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-md font-light">
                                                 {project.category}
-                                            </p>
+                                            </span>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-2xl font-bold text-gray-800">
+                                        <div className="text-right ml-4">
+                                            <div className="text-lg font-light text-gray-700">
                                                 ₹{project.budget.min.toLocaleString()} - ₹{project.budget.max.toLocaleString()}
                                             </div>
-                                            <div className="text-sm text-gray-500">{project.budget.type}</div>
+                                            <div className="text-xs text-gray-400 font-light">{project.budget.type}</div>
                                         </div>
                                     </div>
-
-                                    <p className="text-gray-600 mb-4 line-clamp-2">
+                                    <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
                                         {project.description}
                                     </p>
-
-                                    <div className="flex flex-wrap gap-2 mb-4">
-                                        {project.skillsRequired.slice(0, 5).map((skill, idx) => (
-                                            <span
-                                                key={idx}
-                                                className="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                                            >
-                                                {skill}
-                                            </span>
-                                        ))}
-                                        {project.skillsRequired.length > 5 && (
-                                            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                                                +{project.skillsRequired.length - 5} more
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between text-sm text-gray-500">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-1">
-                                                <FiClock className="w-4 h-4" />
-                                                {getTimeSince(project.createdAt)}
-                                            </div>
-                                            {project.clientId?.location && (
-                                                <div className="flex items-center gap-1">
-                                                    <FiMapPin className="w-4 h-4" />
-                                                    {project.clientId.location}
-                                                </div>
-                                            )}
+                                    <div className="flex items-center justify-between text-xs text-gray-400 font-light">
+                                        <div className="flex items-center gap-1">
+                                            <HiOutlineClock size={14} />
+                                            {getTimeSince(project.createdAt)}
                                         </div>
-                                        <div className="text-gray-600">
-                                            {project.proposalCount} proposal{project.proposalCount !== 1 ? 's' : ''}
+                                        <div>
+                                            {project.proposalCount} proposals
                                         </div>
                                     </div>
                                 </Link>
-                            </motion.div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    </motion.div>
                 )}
+
+                {/* All Projects */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                >
+                    <h2 className="text-lg font-light text-gray-700 mb-4">All Projects</h2>
+                    {loading ? (
+                        <div className="text-center py-16">
+                            <div className="inline-block w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                            <p className="text-sm text-gray-500 mt-3 font-light">Loading projects...</p>
+                        </div>
+                    ) : projects.length === 0 ? (
+                        <div className="text-center py-16 border border-gray-100 rounded-lg">
+                            <HiOutlineBriefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-sm text-gray-600 font-light mb-1">No projects found</p>
+                            <p className="text-xs text-gray-400 font-light">Try adjusting your filters</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {projects.map((project, index) => (
+                                <motion.div
+                                    key={project._id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.03 }}
+                                >
+                                    <Link
+                                        to={`/projects/${project._id}`}
+                                        className="block border border-gray-100 rounded-lg p-5 hover:border-gray-200 hover:bg-gray-50/50 transition-all"
+                                    >
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-light text-gray-700 mb-2 hover:text-green-600 transition">
+                                                    {project.title}
+                                                </h3>
+                                                <span className="inline-block px-2.5 py-0.5 bg-green-50 text-green-700 text-xs rounded-md font-light">
+                                                    {project.category}
+                                                </span>
+                                            </div>
+                                            <div className="text-right ml-4">
+                                                <div className="text-lg font-light text-gray-700">
+                                                    ₹{project.budget.min.toLocaleString()} - ₹{project.budget.max.toLocaleString()}
+                                                </div>
+                                                <div className="text-xs text-gray-400 font-light">{project.budget.type}</div>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
+                                            {project.description}
+                                        </p>
+
+                                        <div className="flex flex-wrap gap-1.5 mb-3">
+                                            {project.skillsRequired.slice(0, 6).map((skill, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs rounded border border-gray-100 font-light"
+                                                >
+                                                    {skill}
+                                                </span>
+                                            ))}
+                                            {project.skillsRequired.length > 6 && (
+                                                <span className="px-2 py-0.5 text-gray-400 text-xs font-light">
+                                                    +{project.skillsRequired.length - 6}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center justify-between text-xs text-gray-400 font-light">
+                                            <div className="flex items-center gap-4">
+                                                <div className="flex items-center gap-1">
+                                                    <HiOutlineClock size={14} />
+                                                    {getTimeSince(project.createdAt)}
+                                                </div>
+                                                {project.clientId?.location && (
+                                                    <div className="flex items-center gap-1">
+                                                        <HiOutlineLocationMarker size={14} />
+                                                        {project.clientId.location}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                {project.proposalCount} proposal{project.proposalCount !== 1 ? 's' : ''}
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+                </motion.div>
             </div>
         </div>
     );

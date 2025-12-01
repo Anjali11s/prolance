@@ -5,6 +5,8 @@ const cors = require('cors')
 const AuthRouter = require('./Routes/AuthRouter')
 const UserRouter = require('./Routes/UserRouter')
 const ProjectRouter = require('./Routes/ProjectRouter')
+const SettingsRouter = require('./Routes/SettingsRouter')
+const UploadRouter = require('./Routes/UploadRouter')
 require('dotenv').config();
 require('./Models/db')
 const PORT = process.env.PORT || 8080;
@@ -13,12 +15,15 @@ app.get('/ping', (req, res) => {
     res.send('PONG');
 })
 
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 app.use(cors());
 
 app.use('/auth', AuthRouter)
 app.use('/api/users', UserRouter)
 app.use('/api/projects', ProjectRouter)
+app.use('/api/settings', SettingsRouter)
+app.use('/api/upload', UploadRouter)
 
 app.listen(PORT, () => {
     console.log(`Sever is running on http://localhost:${PORT}`)

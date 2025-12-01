@@ -42,11 +42,12 @@ export const Timeline = ({
           </p>
         </div> */}
         <ScrollVelocity
-        texts={['React Bits', 'Scroll Down','Get Hired']} 
-        velocity={50} 
-        className="custom-scroll-text text-green-400"
+          texts={['Match Align Sync Blend', 'Discover Explore Hunt Scout', 'Advance Thrive Ascend']}
+          velocity={50}
+          className="custom-scroll-text text-gray-300"
         />
       </div>
+      <br /><br /><br />
       <div ref={ref} className="relative max-w-7xl mx-auto pb-20">
         {data.map((item, index) => (
           <div key={index} className="flex justify-start pt-10 md:pt-40 md:gap-10">

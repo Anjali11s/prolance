@@ -20,6 +20,11 @@ const UserSchema = new Schema({
         type: String,
         required: true,
     },
+    username: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     email: {
         type: String,
         required: true,
@@ -42,17 +47,39 @@ const UserSchema = new Schema({
         type: String,
         default: ''
     },
+    location: {
+        type: String,
+        default: ''
+    },
+    timezone: {
+        type: String,
+        default: ''
+    },
+    // Skills section
+    primarySkills: {
+        type: [String],
+        default: []
+    },
+    secondarySkills: {
+        type: [String],
+        default: []
+    },
     skills: {
         type: [String],
         default: []
+    },
+    experienceLevel: {
+        type: String,
+        enum: ['beginner', 'intermediate', 'expert', ''],
+        default: ''
     },
     hourlyRate: {
         type: Number,
         default: 0
     },
-    location: {
-        type: String,
-        default: ''
+    portfolioLinks: {
+        type: [String],
+        default: []
     },
     phone: {
         type: String,
@@ -61,6 +88,50 @@ const UserSchema = new Schema({
     portfolio: {
         type: [PortfolioItemSchema],
         default: []
+    },
+    // Notification settings
+    notificationSettings: {
+        inApp: {
+            type: Boolean,
+            default: true
+        },
+        projectUpdates: {
+            type: Boolean,
+            default: true
+        }
+    },
+    // Payment settings
+    withdrawalMethods: {
+        type: [{
+            type: String,
+            method: String,
+            details: String
+        }],
+        default: []
+    },
+    paymentMethods: {
+        type: [{
+            type: String,
+            method: String,
+            details: String
+        }],
+        default: []
+    },
+    // Privacy settings
+    privacySettings: {
+        isPublic: {
+            type: Boolean,
+            default: true
+        },
+        whoCanMessage: {
+            type: String,
+            enum: ['everyone', 'connections', 'none'],
+            default: 'everyone'
+        },
+        showWorkHistory: {
+            type: Boolean,
+            default: true
+        }
     },
     rating: {
         type: Number,

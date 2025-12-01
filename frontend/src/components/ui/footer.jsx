@@ -1,142 +1,62 @@
 import React from 'react';
+import ClickSpark from '../ClickSpark';
 import { Link } from 'react-router-dom';
-import { FiGithub, FiTwitter, FiLinkedin, FiMail } from 'react-icons/fi';
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
 
     return (
-        <footer className="w-full bg-gray-50 border-t border-gray-200 py-12 px-4">
-            <div className="max-w-6xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <footer className="w-full bg-white py-16 px-8">
+            <ClickSpark sparkColor="#000000ff" sparkSize={10} sparkRadius={15} sparkCount={8} duration={400} easing="ease-out" extraScale={1.0}>
+                <div className="max-w-7xl mx-auto">
 
-                    {/* Brand */}
-                    <div>
-                        <Link to="/" className="flex items-center gap-2 mb-4">
-                            <h1 className="text-xl font-light tracking-wide flex items-center">
-                                <span className="text-green-600">Pro</span>
-                                <span className="text-gray-700">&lt;lancer&gt;</span>
-                            </h1>
-                        </Link>
-                        <p className="text-sm text-gray-600 mb-4">
-                            Connecting talented freelancers with amazing projects worldwide.
-                        </p>
-                        <div className="flex items-center gap-4">
-                            <a href="#" className="text-gray-600 hover:text-green-600 transition">
-                                <FiGithub className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="text-gray-600 hover:text-green-600 transition">
-                                <FiTwitter className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="text-gray-600 hover:text-green-600 transition">
-                                <FiLinkedin className="w-5 h-5" />
-                            </a>
-                            <a href="#" className="text-gray-600 hover:text-green-600 transition">
-                                <FiMail className="w-5 h-5" />
-                            </a>
-                        </div>
+                    {/* Center - Large Prolancer Text */}
+                    <div className="mb-20 flex justify-center overflow-hidden relative">
+
+                        <h1
+                            className="text-[8rem] md:text-[12rem] lg:text-[16rem] font-bold tracking-tight select-none relative"
+                            style={{
+                                WebkitTextStroke: '1px rgb(156, 163, 175)',
+                                WebkitTextFillColor: 'transparent',
+                                color: 'transparent',
+                                WebkitMaskImage: 'linear-gradient(to top right, transparent 0%, black 30%, black 100%)',
+                                maskImage: 'linear-gradient(to top right, transparent 0%, black 30%, black 100%)'
+                            }}
+                        >
+                            Prolancer
+                        </h1>
                     </div>
 
-                    {/* For Clients */}
-                    <div>
-                        <h4 className="text-sm font-semibold text-gray-800 mb-4">For Clients</h4>
-                        <ul className="space-y-2">
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    How to Hire
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Talent Marketplace
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Project Catalog
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Enterprise
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
+                    {/* Bottom Section */}
+                    <div className="pt-8 border-t border-gray-100">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                            {/* Left - Brand */}
+                            <Link to="/" className="flex items-center gap-2">
+                                <h2 className="text-lg font-light tracking-wide flex items-center">
+                                    <span className="text-green-600">Pro</span>
+                                    <span className="text-gray-700">&lt;lancer&gt;</span>
+                                </h2>
+                            </Link>
 
-                    {/* For Freelancers */}
-                    <div>
-                        <h4 className="text-sm font-semibold text-gray-800 mb-4">For Freelancers</h4>
-                        <ul className="space-y-2">
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    How to Find Work
+                            {/* Right - Links */}
+                            <div className="flex items-center gap-6 text-sm text-gray-600">
+                                <Link to="/about" className="hover:text-green-600 transition font-light">
+                                    About Prolancer
                                 </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Browse Jobs
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Success Stories
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Resources
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-
-                    {/* Company */}
-                    <div>
-                        <h4 className="text-sm font-semibold text-gray-800 mb-4">Company</h4>
-                        <ul className="space-y-2">
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    About Us
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
+                                <Link to="/careers" className="hover:text-green-600 transition font-light">
                                     Careers
                                 </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Privacy Policy
+                                <Link to="/privacy" className="hover:text-green-600 transition font-light">
+                                    Privacy
                                 </Link>
-                            </li>
-                            <li>
-                                <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                    Terms of Service
+                                <Link to="/terms" className="hover:text-green-600 transition font-light">
+                                    Terms
                                 </Link>
-                            </li>
-                        </ul>
-                    </div>
-
-                </div>
-
-                {/* Bottom Bar */}
-                <div className="pt-8 border-t border-gray-200">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <p className="text-sm text-gray-600">
-                            © {currentYear} Prolance. All rights reserved.
-                        </p>
-                        <div className="flex items-center gap-6">
-                            <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                Help Center
-                            </Link>
-                            <Link to="#" className="text-sm text-gray-600 hover:text-green-600 transition">
-                                Contact Us
-                            </Link>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </ClickSpark>
         </footer>
     );
 }
