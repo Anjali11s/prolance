@@ -347,17 +347,30 @@ function ProfileSection({ settings, onUpdate }) {
                 <div className="p-3 bg-white border border-gray-100 rounded-lg">
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs text-gray-500 mb-1 font-light">Username</p>
+                            <p className="text-xs text-gray-500 mb-1 font-light">Username {!settings?.profile?.username && <span className="text-red-500">*Required</span>}</p>
                             {editingField !== 'username' ? (
-                                <p className="text-sm text-gray-700 font-light truncate">{settings?.profile?.username || <span className="text-gray-400">Not set</span>}</p>
+                                <>
+                                    <p className="text-sm text-gray-700 font-light truncate">{settings?.profile?.username || <span className="text-red-400">Not set - Required!</span>}</p>
+                                    {!settings?.profile?.username && (
+                                        <p className="text-xs text-red-500 font-light mt-1">Please set a username to complete your profile</p>
+                                    )}
+                                </>
                             ) : (
-                                <input
-                                    type="text"
-                                    defaultValue={settings?.profile?.username}
-                                    id="username-input"
-                                    className="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:border-green-600 focus:outline-none font-light"
-                                    autoFocus
-                                />
+                                <>
+                                    <input
+                                        type="text"
+                                        defaultValue={settings?.profile?.username}
+                                        id="username-input"
+                                        placeholder="username123"
+                                        className="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:border-green-600 focus:outline-none font-light lowercase"
+                                        autoFocus
+                                        onChange={(e) => {
+                                            // Convert to lowercase automatically
+                                            e.target.value = e.target.value.toLowerCase();
+                                        }}
+                                    />
+                                    <p className="text-xs text-gray-400 font-light mt-1">3-20 characters, lowercase letters, numbers, - and _ only</p>
+                                </>
                             )}
                         </div>
                         <div className="flex items-center gap-1 ml-2">
@@ -369,7 +382,24 @@ function ProfileSection({ settings, onUpdate }) {
                                 <>
                                     <button
                                         onClick={() => {
-                                            updateField('username', document.getElementById('username-input').value);
+                                            const value = document.getElementById('username-input').value;
+                                            // Validate before saving
+                                            if (!value) {
+                                                setMessage('Username is required');
+                                                setIsSuccess(false);
+                                                return;
+                                            }
+                                            if (!/^[a-z0-9_-]+$/.test(value)) {
+                                                setMessage('Invalid username format');
+                                                setIsSuccess(false);
+                                                return;
+                                            }
+                                            if (value.length < 3 || value.length > 20) {
+                                                setMessage('Username must be 3-20 characters');
+                                                setIsSuccess(false);
+                                                return;
+                                            }
+                                            updateField('username', value);
                                             setEditingField(null);
                                         }}
                                         className="p-1 text-green-600 hover:bg-green-50 rounded transition cursor-pointer"
@@ -457,14 +487,21 @@ function ProfileSection({ settings, onUpdate }) {
                             {editingField !== 'location' ? (
                                 <p className="text-sm text-gray-700 font-light truncate">{settings?.profile?.location || <span className="text-gray-400">Not set</span>}</p>
                             ) : (
-                                <input
-                                    type="text"
-                                    defaultValue={settings?.profile?.location}
-                                    id="location-input"
-                                    className="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:border-green-600 focus:outline-none font-light"
-                                    autoFocus
+                                <Select
+                                    options={countryOptions}
+                                    value={countryOptions.find(c => c.label === settings?.profile?.location)}
+                                    onChange={(selectedOption) => {
+                                        // Store the selected country in a temporary state
+                                        document.getElementById('location-select-value').value = selectedOption?.label || '';
+                                    }}
+                                    styles={customSelectStyles}
+                                    placeholder="Select country..."
+                                    isClearable
+                                    isSearchable
+                                    className="text-sm"
                                 />
                             )}
+                            <input type="hidden" id="location-select-value" defaultValue={settings?.profile?.location} />
                         </div>
                         <div className="flex items-center gap-1 ml-2">
                             {editingField !== 'location' ? (
@@ -475,7 +512,8 @@ function ProfileSection({ settings, onUpdate }) {
                                 <>
                                     <button
                                         onClick={() => {
-                                            updateField('location', document.getElementById('location-input').value);
+                                            const value = document.getElementById('location-select-value').value;
+                                            updateField('location', value);
                                             setEditingField(null);
                                         }}
                                         className="p-1 text-green-600 hover:bg-green-50 rounded transition cursor-pointer"

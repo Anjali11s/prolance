@@ -142,6 +142,7 @@ const getAllProjects = async (req, res) => {
 const getProjectById = async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.user?._id; // May be undefined for non-authenticated users
 
         const project = await ProjectModel.findById(id)
             .populate('clientId', 'name avatar rating totalReviews location email');
@@ -153,9 +154,24 @@ const getProjectById = async (req, res) => {
             });
         }
 
-        // Increment view count
-        project.viewCount += 1;
-        await project.save();
+        // Only increment view count if user is authenticated and hasn't viewed before
+        if (userId) {
+            const hasViewed = project.viewedBy.some(
+                viewerId => viewerId.toString() === userId.toString()
+            );
+
+            if (!hasViewed) {
+                // Add user to viewedBy array and increment count
+                project.viewedBy.push(userId);
+                project.viewCount += 1;
+                await project.save();
+            }
+        } else {
+            // For non-authenticated users, increment count on every view
+            // (or you could skip incrementing for anonymous users)
+            project.viewCount += 1;
+            await project.save();
+        }
 
         res.status(200).json({
             success: true,

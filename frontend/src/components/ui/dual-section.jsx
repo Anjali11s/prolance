@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
+import AnimatedBeam from './AnimatedBeam';
 
 export default function DualSection() {
     return (
@@ -65,6 +66,11 @@ export default function DualSection() {
                             Post a Project
                         </Link>
                     </motion.div>
+                </div>
+
+                {/* Animated Beam Below Content */}
+                <div className="hidden lg:block mt-16 relative">
+                    <AnimatedBeam />
                 </div>
             </div>
         </div>

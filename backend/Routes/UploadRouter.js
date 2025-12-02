@@ -3,8 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const ensureAuthenticated = require('../Middlewares/Auth');
 const UserModel = require('../Models/User');
+const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 
-// Configure multer for memory storage (we'll store as base64)
+// Configure multer for memory storage
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
@@ -32,16 +33,7 @@ router.post('/upload', ensureAuthenticated, upload.single('photo'), async (req, 
         }
 
         const userId = req.user._id;
-
-        // Convert image to base64
-        const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
-
-        // Update user's avatar
-        const user = await UserModel.findByIdAndUpdate(
-            userId,
-            { $set: { avatar: base64Image } },
-            { new: true }
-        ).select('-password');
+        const user = await UserModel.findById(userId);
 
         if (!user) {
             return res.status(404).json({
@@ -50,10 +42,26 @@ router.post('/upload', ensureAuthenticated, upload.single('photo'), async (req, 
             });
         }
 
+        // Delete old avatar from Cloudinary if it exists
+        if (user.avatar && user.avatar.includes('cloudinary.com')) {
+            await deleteFromCloudinary(user.avatar);
+        }
+
+        // Upload to Cloudinary
+        const imageUrl = await uploadToCloudinary(
+            req.file.buffer,
+            'prolance/avatars',
+            `avatar_${userId}`
+        );
+
+        // Update user's avatar with Cloudinary URL
+        user.avatar = imageUrl;
+        await user.save();
+
         res.status(200).json({
             message: 'Profile photo uploaded successfully',
             success: true,
-            avatar: user.avatar
+            avatar: imageUrl
         });
     } catch (error) {
         console.error('Upload error:', error);
@@ -68,12 +76,7 @@ router.post('/upload', ensureAuthenticated, upload.single('photo'), async (req, 
 router.delete('/photo', ensureAuthenticated, async (req, res) => {
     try {
         const userId = req.user._id;
-
-        const user = await UserModel.findByIdAndUpdate(
-            userId,
-            { $set: { avatar: '' } },
-            { new: true }
-        ).select('-password');
+        const user = await UserModel.findById(userId);
 
         if (!user) {
             return res.status(404).json({
@@ -82,11 +85,21 @@ router.delete('/photo', ensureAuthenticated, async (req, res) => {
             });
         }
 
+        // Delete from Cloudinary if it exists
+        if (user.avatar && user.avatar.includes('cloudinary.com')) {
+            await deleteFromCloudinary(user.avatar);
+        }
+
+        // Clear avatar from database
+        user.avatar = '';
+        await user.save();
+
         res.status(200).json({
             message: 'Profile photo removed successfully',
             success: true
         });
     } catch (error) {
+        console.error('Delete error:', error);
         res.status(500).json({
             message: 'Failed to remove photo',
             success: false
@@ -104,13 +117,16 @@ router.post('/project-thumbnail', ensureAuthenticated, upload.single('thumbnail'
             });
         }
 
-        // Convert image to base64
-        const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+        // Upload to Cloudinary
+        const imageUrl = await uploadToCloudinary(
+            req.file.buffer,
+            'prolance/thumbnails'
+        );
 
         res.status(200).json({
             message: 'Thumbnail uploaded successfully',
             success: true,
-            thumbnail: base64Image
+            thumbnail: imageUrl
         });
     } catch (error) {
         console.error('Thumbnail upload error:', error);
@@ -131,15 +147,17 @@ router.post('/project-images', ensureAuthenticated, upload.array('images', 5), a
             });
         }
 
-        // Convert each image to base64
-        const base64Images = req.files.map(file =>
-            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
+        // Upload each image to Cloudinary
+        const uploadPromises = req.files.map(file =>
+            uploadToCloudinary(file.buffer, 'prolance/project-images')
         );
+
+        const imageUrls = await Promise.all(uploadPromises);
 
         res.status(200).json({
             message: 'Images uploaded successfully',
             success: true,
-            images: base64Images
+            images: imageUrls
         });
     } catch (error) {
         console.error('Images upload error:', error);

@@ -4,6 +4,7 @@ const ensureAuthenticated = require('../Middlewares/Auth');
 const {
     getProfile,
     getUserById,
+    getUserByUsername,
     updateProfile,
     addPortfolioItem,
     removePortfolioItem,
@@ -22,6 +23,7 @@ router.delete('/portfolio/:itemId', ensureAuthenticated, removePortfolioItem);
 
 // Public routes
 router.get('/search', searchFreelancers);
+router.get('/username/:username', getUserByUsername);
 router.get('/:id', getUserById);
 
 module.exports = router;

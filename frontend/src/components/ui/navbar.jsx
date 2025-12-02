@@ -292,11 +292,23 @@ export default function Navbar() {
               {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-lg shadow-sm py-2 z-50">
                   <Link
+                    to={user?.username ? `/user/${user.username}` : '/settings'}
+                    onClick={() => {
+                      console.log('User object:', user);
+                      console.log('Username:', user?.username);
+                      setIsDropdownOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-green-600 transition"
+                  >
+                    <HiOutlineUser size={16} />
+                    <span>{user?.username ? 'My Profile' : 'Set Username'}</span>
+                  </Link>
+                  <Link
                     to="/dashboard"
                     onClick={() => setIsDropdownOpen(false)}
                     className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-green-600 transition"
                   >
-                    <HiOutlineUser size={16} />
+                    <HiOutlineBriefcase size={16} />
                     <span>Dashboard</span>
                   </Link>
                   <Link

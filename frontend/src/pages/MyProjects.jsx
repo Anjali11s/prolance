@@ -139,8 +139,8 @@ export default function MyProjects() {
                                 key={tab.key}
                                 onClick={() => setFilter(tab.key)}
                                 className={`px-4 py-2 text-sm rounded-lg transition whitespace-nowrap font-light ${filter === tab.key
-                                        ? 'bg-green-50 text-green-700 border border-green-200'
-                                        : 'text-gray-600 hover:bg-gray-50 border border-transparent'
+                                    ? 'bg-green-50 text-green-700 border border-green-200'
+                                    : 'text-gray-600 hover:bg-gray-50 border border-transparent'
                                     }`}
                             >
                                 {tab.label}

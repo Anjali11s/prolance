@@ -87,6 +87,13 @@ const ProjectSchema = new Schema({
         type: Number,
         default: 0
     },
+    viewedBy: {
+        type: [{
+            type: Schema.Types.ObjectId,
+            ref: 'users'
+        }],
+        default: []
+    },
     visibility: {
         type: String,
         enum: ['public', 'private'],

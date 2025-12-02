@@ -1,3 +1,6 @@
+// IMPORTANT: Load environment variables FIRST before anything else
+require('dotenv').config();
+
 const express = require('express')
 const app = express();
 const bodyParser = require('body-parser');
@@ -7,7 +10,6 @@ const UserRouter = require('./Routes/UserRouter')
 const ProjectRouter = require('./Routes/ProjectRouter')
 const SettingsRouter = require('./Routes/SettingsRouter')
 const UploadRouter = require('./Routes/UploadRouter')
-require('dotenv').config();
 require('./Models/db')
 const PORT = process.env.PORT || 8080;
 

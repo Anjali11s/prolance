@@ -1,61 +1,51 @@
-import { useRef, useState } from 'react';
-import { HiOutlinePhotograph, HiOutlineX, HiOutlinePlus } from 'react-icons/hi';
+import { useState } from 'react';
+import { HiOutlinePhotograph, HiOutlineX } from 'react-icons/hi';
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export default function MultiImageUpload({ values = [], onChange, maxImages = 5 }) {
-    const fileInputRef = useRef(null);
-    const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleFileSelect = async (files) => {
-        if (!files || files.length === 0) return;
+    const handleFileChange = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
 
-        const remainingSlots = maxImages - values.length;
-        if (remainingSlots <= 0) {
+        // Check if adding files would exceed max
+        if (values.length + files.length > maxImages) {
             setError(`Maximum ${maxImages} images allowed`);
             return;
         }
 
-        const filesToProcess = Array.from(files).slice(0, remainingSlots);
         setError('');
-        setLoading(true);
+        setUploading(true);
 
         try {
-            const processedImages = [];
+            const formData = new FormData();
+            files.forEach(file => {
+                formData.append('images', file);
+            });
 
-            for (const file of filesToProcess) {
-                // Validate file type
-                if (!file.type.startsWith('image/')) {
-                    continue;
+            const token = localStorage.getItem('authToken');
+            const response = await axios.post(
+                `${API_BASE_URL}/api/upload/project-images`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        Authorization: token
+                    }
                 }
+            );
 
-                // Validate file size (5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    continue;
-                }
-
-                // Convert to base64
-                const base64 = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-
-                processedImages.push(base64);
+            if (response.data.success) {
+                onChange([...values, ...response.data.images]);
             }
-
-            onChange([...values, ...processedImages]);
         } catch (err) {
-            setError('Failed to process images');
+            setError(err.response?.data?.message || 'Failed to upload images');
         } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleChange = (e) => {
-        handleFileSelect(e.target.files);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+            setUploading(false);
         }
     };
 
@@ -67,65 +57,57 @@ export default function MultiImageUpload({ values = [], onChange, maxImages = 5 
     const canAddMore = values.length < maxImages;
 
     return (
-        <div className="w-full">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {/* Existing Images */}
+        <div>
+            <div className="grid grid-cols-3 gap-3">
+                {/* Existing images */}
                 {values.map((image, index) => (
-                    <div key={index} className="relative group aspect-square">
+                    <div key={index} className="relative group">
                         <img
                             src={image}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-full object-cover rounded-lg border border-gray-200"
+                            alt={`Upload ${index + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border border-gray-200"
                         />
                         <button
                             type="button"
                             onClick={() => handleRemove(index)}
-                            className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                            className="absolute top-2 right-2 p-1.5 bg-white text-red-600 rounded-full shadow-md hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
                         >
                             <HiOutlineX size={14} />
                         </button>
                     </div>
                 ))}
 
-                {/* Add More Button */}
+                {/* Upload button */}
                 {canAddMore && (
-                    <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={loading}
-                        className="aspect-square border-2 border-dashed border-gray-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-gray-300 hover:bg-gray-50/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {loading ? (
-                            <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                            <>
-                                <HiOutlinePlus className="w-8 h-8 text-gray-300 mb-1" />
-                                <p className="text-xs text-gray-400 font-light">Add Image</p>
-                                <p className="text-xs text-gray-400 font-light">
-                                    {values.length}/{maxImages}
-                                </p>
-                            </>
-                        )}
-                    </button>
+                    <label className="block w-full h-32 border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 transition cursor-pointer">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleFileChange}
+                            className="hidden"
+                            disabled={uploading}
+                        />
+                        <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                            {uploading ? (
+                                <>
+                                    <div className="w-6 h-6 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin mb-1"></div>
+                                    <p className="text-xs font-light">Uploading...</p>
+                                </>
+                            ) : (
+                                <>
+                                    <HiOutlinePhotograph size={24} className="mb-1" />
+                                    <p className="text-xs font-light">Add Image</p>
+                                    <p className="text-xs text-gray-400">{values.length}/{maxImages}</p>
+                                </>
+                            )}
+                        </div>
+                    </label>
                 )}
             </div>
-
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleChange}
-                className="hidden"
-            />
-
             {error && (
                 <p className="text-xs text-red-500 mt-2 font-light">{error}</p>
             )}
-
-            <p className="text-xs text-gray-400 mt-2 font-light">
-                Upload up to {maxImages} images (max 5MB each)
-            </p>
         </div>
     );
 }

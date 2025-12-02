@@ -58,12 +58,45 @@ const updateProfileInfo = async (req, res) => {
 
         const updateData = {};
         if (name) updateData.name = name;
-        if (username !== undefined) updateData.username = username;
         if (bio !== undefined) updateData.bio = bio;
         if (location !== undefined) updateData.location = location;
         if (timezone !== undefined) updateData.timezone = timezone;
         if (avatar !== undefined) updateData.avatar = avatar;
         if (role !== undefined) updateData.role = role;
+
+        // Handle username update with validation
+        if (username !== undefined) {
+            // Validate username format
+            if (!/^[a-z0-9_-]+$/.test(username)) {
+                return res.status(400).json({
+                    message: 'Username can only contain lowercase letters, numbers, hyphens, and underscores',
+                    success: false
+                });
+            }
+
+            // Validate username length
+            if (username.length < 3 || username.length > 20) {
+                return res.status(400).json({
+                    message: 'Username must be between 3 and 20 characters',
+                    success: false
+                });
+            }
+
+            // Check if username is already taken by another user
+            const existingUser = await UserModel.findOne({
+                username: username.toLowerCase(),
+                _id: { $ne: userId }
+            });
+
+            if (existingUser) {
+                return res.status(400).json({
+                    message: 'Username is already taken',
+                    success: false
+                });
+            }
+
+            updateData.username = username.toLowerCase();
+        }
 
         const user = await UserModel.findByIdAndUpdate(
             userId,

@@ -22,8 +22,19 @@ const UserSchema = new Schema({
     },
     username: {
         type: String,
+        required: true,
         unique: true,
-        sparse: true
+        lowercase: true,
+        trim: true,
+        minlength: 3,
+        maxlength: 20,
+        validate: {
+            validator: function (v) {
+                // Only allow lowercase letters, numbers, hyphens, and underscores
+                return /^[a-z0-9_-]+$/.test(v);
+            },
+            message: 'Username can only contain lowercase letters, numbers, hyphens, and underscores'
+        }
     },
     email: {
         type: String,

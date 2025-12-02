@@ -50,6 +50,31 @@ const getUserById = async (req, res) => {
     }
 };
 
+// Get public user profile by username
+const getUserByUsername = async (req, res) => {
+    try {
+        const { username } = req.params;
+        const user = await UserModel.findOne({ username: username.toLowerCase() }).select('-password -email -phone');
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'User not found',
+                success: false
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            user
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false
+        });
+    }
+};
+
 // Update user profile
 const updateProfile = async (req, res) => {
     try {
@@ -224,6 +249,7 @@ const searchFreelancers = async (req, res) => {
 module.exports = {
     getProfile,
     getUserById,
+    getUserByUsername,
     updateProfile,
     addPortfolioItem,
     removePortfolioItem,

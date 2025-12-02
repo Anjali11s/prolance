@@ -1,13 +1,15 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { HiOutlinePhotograph, HiOutlineX } from 'react-icons/hi';
+import axios from 'axios';
 
-export default function ImageUpload({ value, onChange, label = "Upload Image" }) {
-    const fileInputRef = useRef(null);
-    const [loading, setLoading] = useState(false);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+
+export default function ImageUpload({ value, onChange, label = 'Upload Image' }) {
+    const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
-    const [isDragging, setIsDragging] = useState(false);
 
-    const handleFileSelect = async (file) => {
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
         if (!file) return;
 
         // Validate file type
@@ -23,110 +25,81 @@ export default function ImageUpload({ value, onChange, label = "Upload Image" })
         }
 
         setError('');
-        setLoading(true);
+        setUploading(true);
 
         try {
-            // Convert to base64
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                onChange(reader.result);
-                setLoading(false);
-            };
-            reader.onerror = () => {
-                setError('Failed to read file');
-                setLoading(false);
-            };
-            reader.readAsDataURL(file);
+            const formData = new FormData();
+            formData.append('thumbnail', file);
+
+            const token = localStorage.getItem('authToken');
+            const response = await axios.post(
+                `${API_BASE_URL}/api/upload/project-thumbnail`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        Authorization: token
+                    }
+                }
+            );
+
+            if (response.data.success) {
+                onChange(response.data.thumbnail);
+            }
         } catch (err) {
-            setError('Failed to process image');
-            setLoading(false);
+            setError(err.response?.data?.message || 'Failed to upload image');
+        } finally {
+            setUploading(false);
         }
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const file = e.dataTransfer.files[0];
-        handleFileSelect(file);
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = () => {
-        setIsDragging(false);
-    };
-
-    const handleChange = (e) => {
-        const file = e.target.files[0];
-        handleFileSelect(file);
     };
 
     const handleRemove = () => {
         onChange('');
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
+        setError('');
     };
 
     return (
-        <div className="w-full">
+        <div>
             {value ? (
                 <div className="relative group">
                     <img
                         src={value}
-                        alt="Preview"
+                        alt="Upload"
                         className="w-full h-48 object-cover rounded-lg border border-gray-200"
                     />
                     <button
                         type="button"
                         onClick={handleRemove}
-                        className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                        className="absolute top-2 right-2 p-2 bg-white text-red-600 rounded-full shadow-md hover:bg-red-50 transition opacity-0 group-hover:opacity-100"
                     >
                         <HiOutlineX size={16} />
                     </button>
                 </div>
             ) : (
-                <div
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`w-full h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition ${isDragging
-                            ? 'border-green-400 bg-green-50/30'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/30'
-                        }`}
-                >
-                    {loading ? (
-                        <div className="flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-sm text-gray-500 font-light">Processing...</p>
-                        </div>
-                    ) : (
-                        <>
-                            <HiOutlinePhotograph className="w-10 h-10 text-gray-300 mb-2" />
-                            <p className="text-sm text-gray-600 font-light mb-1">{label}</p>
-                            <p className="text-xs text-gray-400 font-light">
-                                Drag & drop or click to browse
-                            </p>
-                            <p className="text-xs text-gray-400 font-light mt-1">
-                                Max size: 5MB
-                            </p>
-                        </>
-                    )}
-                </div>
+                <label className="block w-full h-48 border-2 border-dashed border-gray-200 rounded-lg hover:border-gray-300 transition cursor-pointer">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        disabled={uploading}
+                    />
+                    <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                        {uploading ? (
+                            <>
+                                <div className="w-8 h-8 border-2 border-gray-300 border-t-green-600 rounded-full animate-spin mb-2"></div>
+                                <p className="text-sm font-light">Uploading...</p>
+                            </>
+                        ) : (
+                            <>
+                                <HiOutlinePhotograph size={32} className="mb-2" />
+                                <p className="text-sm font-light">{label}</p>
+                                <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+                            </>
+                        )}
+                    </div>
+                </label>
             )}
-
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleChange}
-                className="hidden"
-            />
-
             {error && (
                 <p className="text-xs text-red-500 mt-2 font-light">{error}</p>
             )}

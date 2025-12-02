@@ -43,11 +43,11 @@ export const authService = {
     login: async (email, password) => {
         try {
             const response = await api.post('/auth/login', { email, password });
-            const { jwtToken, name, email: userEmail, role, userId } = response.data;
+            const { jwtToken, name, email: userEmail, role, userId, username } = response.data;
 
             // Save token and user data
             tokenManager.setToken(jwtToken);
-            userManager.setUser({ name, email: userEmail, role, userId });
+            userManager.setUser({ name, email: userEmail, role, userId, username });
 
             return response.data;
         } catch (error) {
@@ -56,9 +56,9 @@ export const authService = {
     },
 
     // Signup
-    signup: async (name, email, password, role = 'freelancer') => {
+    signup: async (name, email, password, role = 'freelancer', username) => {
         try {
-            const response = await api.post('/auth/signup', { name, email, password, role });
+            const response = await api.post('/auth/signup', { name, email, password, role, username });
             return response.data;
         } catch (error) {
             throw error.response?.data || { message: 'Signup failed', success: false };
