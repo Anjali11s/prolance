@@ -13,7 +13,10 @@ const createProject = async (req, res) => {
             duration,
             skillsRequired,
             deadline,
-            tags
+            tags,
+            visibility,
+            thumbnail,
+            images
         } = req.body;
 
         // Validate required fields
@@ -42,7 +45,10 @@ const createProject = async (req, res) => {
             skillsRequired: skillsRequired || [],
             clientId: userId,
             deadline: deadline || null,
-            tags: tags || []
+            tags: tags || [],
+            visibility: visibility || 'public',
+            thumbnail: thumbnail || '',
+            images: images || []
         });
 
         await project.save();
@@ -75,7 +81,7 @@ const getAllProjects = async (req, res) => {
             limit = 20
         } = req.query;
 
-        let query = { status };
+        let query = { status, visibility: 'public' };
 
         // Category filter
         if (category) {

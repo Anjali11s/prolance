@@ -86,6 +86,19 @@ const ProjectSchema = new Schema({
     viewCount: {
         type: Number,
         default: 0
+    },
+    visibility: {
+        type: String,
+        enum: ['public', 'private'],
+        default: 'public'
+    },
+    thumbnail: {
+        type: String,
+        default: ''
+    },
+    images: {
+        type: [String],
+        default: []
     }
 }, {
     timestamps: true

@@ -24,7 +24,8 @@ const getSettings = async (req, res) => {
                     bio: user.bio,
                     location: user.location,
                     timezone: user.timezone,
-                    avatar: user.avatar
+                    avatar: user.avatar,
+                    role: user.role
                 },
                 skills: {
                     primarySkills: user.primarySkills,
@@ -53,7 +54,7 @@ const getSettings = async (req, res) => {
 const updateProfileInfo = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { name, username, bio, location, timezone, avatar } = req.body;
+        const { name, username, bio, location, timezone, avatar, role } = req.body;
 
         const updateData = {};
         if (name) updateData.name = name;
@@ -62,6 +63,7 @@ const updateProfileInfo = async (req, res) => {
         if (location !== undefined) updateData.location = location;
         if (timezone !== undefined) updateData.timezone = timezone;
         if (avatar !== undefined) updateData.avatar = avatar;
+        if (role !== undefined) updateData.role = role;
 
         const user = await UserModel.findByIdAndUpdate(
             userId,

@@ -6,6 +6,10 @@ import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
 import BrowseProjects from './pages/BrowseProjects'
 import FindFreelancers from './pages/FindFreelancers'
+import PostProject from './pages/PostProject'
+import MyProjects from './pages/MyProjects'
+import ProjectDetail from './pages/ProjectDetail'
+import Support from './pages/Support'
 import ProtectedRoute from './components/ProtectedRoute'
 import GuestRoute from './components/GuestRoute'
 import Navbar from './components/ui/navbar'
@@ -35,7 +39,24 @@ function App() {
           }
         />
         <Route path="/projects" element={<BrowseProjects />} />
+        <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/freelancers" element={<FindFreelancers />} />
+        <Route
+          path="/post-project"
+          element={
+            <ProtectedRoute>
+              <PostProject />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-projects"
+          element={
+            <ProtectedRoute>
+              <MyProjects />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -52,6 +73,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/support" element={<Support />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

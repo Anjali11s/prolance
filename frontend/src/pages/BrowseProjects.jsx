@@ -12,10 +12,12 @@ import {
     HiOutlineStar
 } from 'react-icons/hi';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 export default function BrowseProjects() {
+    const { isAuthenticated } = useAuth();
     const [projects, setProjects] = useState([]);
     const [trendingProjects, setTrendingProjects] = useState([]);
     const [bestMatchProjects, setBestMatchProjects] = useState([]);
@@ -42,9 +44,11 @@ export default function BrowseProjects() {
 
     useEffect(() => {
         fetchProjects();
-        fetchTrendingProjects();
-        fetchBestMatches();
-    }, [selectedCategory, minBudget, maxBudget]);
+        if (isAuthenticated) {
+            fetchTrendingProjects();
+            fetchBestMatches();
+        }
+    }, [selectedCategory, minBudget, maxBudget, isAuthenticated]);
 
     const fetchProjects = async () => {
         setLoading(true);
@@ -217,62 +221,79 @@ export default function BrowseProjects() {
                     </motion.div>
                 )}
 
-                {/* Trending Projects Carousel */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="mb-10"
-                >
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-light text-gray-700">Trending Projects</h2>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => scrollCarousel('left')}
-                                className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                            >
-                                <HiOutlineChevronLeft size={16} className="text-gray-600" />
-                            </button>
-                            <button
-                                onClick={() => scrollCarousel('right')}
-                                className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
-                            >
-                                <HiOutlineChevronRight size={16} className="text-gray-600" />
-                            </button>
-                        </div>
-                    </div>
-                    <div
-                        ref={carouselRef}
-                        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth"
-                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                {/* Trending Projects Carousel - Only show when authenticated */}
+                {isAuthenticated && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="mb-10"
                     >
-                        {trendingProjects.map((project) => (
-                            <Link
-                                key={project._id}
-                                to={`/projects/${project._id}`}
-                                className="flex-shrink-0 w-80 border border-gray-100 rounded-lg p-4 hover:border-gray-200 hover:bg-gray-50/50 transition-all"
-                            >
-                                <h3 className="text-base font-light text-gray-700 mb-2 line-clamp-1">
-                                    {project.title}
-                                </h3>
-                                <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
-                                    {project.description}
-                                </p>
-                                <div className="flex items-center justify-between text-xs text-gray-400 font-light">
-                                    <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-md">
-                                        {project.category}
-                                    </span>
-                                    <span>
-                                        ₹{project.budget.min.toLocaleString()}+
-                                    </span>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                </motion.div>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-lg font-light text-gray-700">Trending Projects</h2>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => scrollCarousel('left')}
+                                    className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                                >
+                                    <HiOutlineChevronLeft size={16} className="text-gray-600" />
+                                </button>
+                                <button
+                                    onClick={() => scrollCarousel('right')}
+                                    className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+                                >
+                                    <HiOutlineChevronRight size={16} className="text-gray-600" />
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            ref={carouselRef}
+                            className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth"
+                            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        >
+                            {trendingProjects.map((project) => (
+                                <Link
+                                    key={project._id}
+                                    to={`/projects/${project._id}`}
+                                    className="flex-shrink-0 w-80 border border-gray-100 rounded-lg overflow-hidden hover:border-gray-200 hover:shadow-sm transition-all"
+                                >
+                                    {/* Thumbnail */}
+                                    {project.thumbnail ? (
+                                        <img
+                                            src={project.thumbnail}
+                                            alt={project.title}
+                                            className="w-full h-40 object-cover bg-gray-100"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-40 bg-gradient-to-br from-green-50 to-gray-50 flex items-center justify-center">
+                                            <HiOutlineBriefcase size={40} className="text-gray-300" />
+                                        </div>
+                                    )}
 
-                {/* Best Matching Projects */}
-                {bestMatchProjects.length > 0 && (
+                                    <div className="p-4">
+                                        <h3 className="text-base font-light text-gray-700 mb-2 line-clamp-1">
+                                            {project.title}
+                                        </h3>
+                                        <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
+                                            {project.description}
+                                        </p>
+                                        <div className="flex items-center justify-between text-xs text-gray-400 font-light">
+                                            <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-md">
+                                                {project.category}
+                                            </span>
+                                            <span>
+                                                ₹{project.budget.min.toLocaleString()}+
+                                            </span>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* Best Matching Projects - Only show when authenticated */}
+                {isAuthenticated && bestMatchProjects.length > 0 && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -288,34 +309,49 @@ export default function BrowseProjects() {
                                 <Link
                                     key={project._id}
                                     to={`/projects/${project._id}`}
-                                    className="block border border-green-100 bg-green-50/30 rounded-lg p-5 hover:border-green-200 hover:bg-green-50/50 transition-all"
+                                    className="flex border border-green-100 bg-green-50/30 rounded-lg overflow-hidden hover:border-green-200 hover:bg-green-50/50 transition-all"
                                 >
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div className="flex-1">
-                                            <h3 className="text-lg font-light text-gray-700 mb-2 hover:text-green-600 transition">
-                                                {project.title}
-                                            </h3>
-                                            <span className="inline-block px-2.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-md font-light">
-                                                {project.category}
-                                            </span>
+                                    {/* Thumbnail */}
+                                    {project.thumbnail ? (
+                                        <img
+                                            src={project.thumbnail}
+                                            alt={project.title}
+                                            className="w-32 h-32 object-cover bg-gray-100 flex-shrink-0"
+                                        />
+                                    ) : (
+                                        <div className="w-32 h-32 bg-gradient-to-br from-green-100 to-gray-50 flex items-center justify-center flex-shrink-0">
+                                            <HiOutlineBriefcase size={32} className="text-gray-300" />
                                         </div>
-                                        <div className="text-right ml-4">
-                                            <div className="text-lg font-light text-gray-700">
-                                                ₹{project.budget.min.toLocaleString()} - ₹{project.budget.max.toLocaleString()}
+                                    )}
+
+                                    <div className="flex-1 p-5">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-light text-gray-700 mb-2 hover:text-green-600 transition">
+                                                    {project.title}
+                                                </h3>
+                                                <span className="inline-block px-2.5 py-0.5 bg-green-100 text-green-700 text-xs rounded-md font-light">
+                                                    {project.category}
+                                                </span>
                                             </div>
-                                            <div className="text-xs text-gray-400 font-light">{project.budget.type}</div>
+                                            <div className="text-right ml-4">
+                                                <div className="text-lg font-light text-gray-700">
+                                                    ₹{project.budget.min.toLocaleString()} - ₹{project.budget.max.toLocaleString()}
+                                                </div>
+                                                <div className="text-xs text-gray-400 font-light">{project.budget.type}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
-                                        {project.description}
-                                    </p>
-                                    <div className="flex items-center justify-between text-xs text-gray-400 font-light">
-                                        <div className="flex items-center gap-1">
-                                            <HiOutlineClock size={14} />
-                                            {getTimeSince(project.createdAt)}
-                                        </div>
-                                        <div>
-                                            {project.proposalCount} proposals
+                                        <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
+                                            {project.description}
+                                        </p>
+                                        <div className="flex items-center justify-between text-xs text-gray-400 font-light">
+                                            <div className="flex items-center gap-1">
+                                                <HiOutlineClock size={14} />
+                                                {getTimeSince(project.createdAt)}
+                                            </div>
+                                            <div>
+                                                {project.proposalCount} proposals
+                                            </div>
                                         </div>
                                     </div>
                                 </Link>
@@ -343,70 +379,77 @@ export default function BrowseProjects() {
                             <p className="text-xs text-gray-400 font-light">Try adjusting your filters</p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {projects.map((project, index) => (
                                 <motion.div
                                     key={project._id}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.03 }}
+                                    transition={{ delay: index * 0.02 }}
                                 >
                                     <Link
                                         to={`/projects/${project._id}`}
-                                        className="block border border-gray-100 rounded-lg p-5 hover:border-gray-200 hover:bg-gray-50/50 transition-all"
+                                        className="block border border-gray-100 rounded-lg overflow-hidden hover:border-gray-200 hover:shadow-sm transition-all h-full"
                                     >
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div className="flex-1">
-                                                <h3 className="text-lg font-light text-gray-700 mb-2 hover:text-green-600 transition">
+                                        {/* Thumbnail */}
+                                        {project.thumbnail ? (
+                                            <img
+                                                src={project.thumbnail}
+                                                alt={project.title}
+                                                className="w-full h-40 object-cover bg-gray-100"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-40 bg-gradient-to-br from-gray-50 to-green-50 flex items-center justify-center">
+                                                <HiOutlineBriefcase size={36} className="text-gray-300" />
+                                            </div>
+                                        )}
+
+                                        <div className="p-4">
+                                            <div className="mb-3">
+                                                <h3 className="text-base font-light text-gray-700 mb-2 line-clamp-2 hover:text-green-600 transition min-h-[3rem]">
                                                     {project.title}
                                                 </h3>
-                                                <span className="inline-block px-2.5 py-0.5 bg-green-50 text-green-700 text-xs rounded-md font-light">
+                                                <span className="inline-block px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-md font-light">
                                                     {project.category}
                                                 </span>
                                             </div>
-                                            <div className="text-right ml-4">
-                                                <div className="text-lg font-light text-gray-700">
-                                                    ₹{project.budget.min.toLocaleString()} - ₹{project.budget.max.toLocaleString()}
-                                                </div>
-                                                <div className="text-xs text-gray-400 font-light">{project.budget.type}</div>
-                                            </div>
-                                        </div>
 
-                                        <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light">
-                                            {project.description}
-                                        </p>
+                                            <p className="text-sm text-gray-600 mb-3 line-clamp-2 font-light min-h-[2.5rem]">
+                                                {project.description}
+                                            </p>
 
-                                        <div className="flex flex-wrap gap-1.5 mb-3">
-                                            {project.skillsRequired.slice(0, 6).map((skill, idx) => (
-                                                <span
-                                                    key={idx}
-                                                    className="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs rounded border border-gray-100 font-light"
-                                                >
-                                                    {skill}
-                                                </span>
-                                            ))}
-                                            {project.skillsRequired.length > 6 && (
-                                                <span className="px-2 py-0.5 text-gray-400 text-xs font-light">
-                                                    +{project.skillsRequired.length - 6}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center justify-between text-xs text-gray-400 font-light">
-                                            <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-1">
-                                                    <HiOutlineClock size={14} />
-                                                    {getTimeSince(project.createdAt)}
-                                                </div>
-                                                {project.clientId?.location && (
-                                                    <div className="flex items-center gap-1">
-                                                        <HiOutlineLocationMarker size={14} />
-                                                        {project.clientId.location}
-                                                    </div>
+                                            <div className="flex flex-wrap gap-1.5 mb-3 min-h-[1.5rem]">
+                                                {project.skillsRequired.slice(0, 3).map((skill, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        className="px-2 py-0.5 bg-gray-50 text-gray-600 text-xs rounded border border-gray-100 font-light"
+                                                    >
+                                                        {skill}
+                                                    </span>
+                                                ))}
+                                                {project.skillsRequired.length > 3 && (
+                                                    <span className="px-2 py-0.5 text-gray-400 text-xs font-light">
+                                                        +{project.skillsRequired.length - 3}
+                                                    </span>
                                                 )}
                                             </div>
-                                            <div>
-                                                {project.proposalCount} proposal{project.proposalCount !== 1 ? 's' : ''}
+
+                                            <div className="pt-3 border-t border-gray-100">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <div className="text-base font-light text-gray-700">
+                                                        ₹{project.budget.min.toLocaleString()}+
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 font-light">{project.budget.type}</div>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs text-gray-400 font-light">
+                                                    <div className="flex items-center gap-1">
+                                                        <HiOutlineClock size={12} />
+                                                        {getTimeSince(project.createdAt)}
+                                                    </div>
+                                                    <div>
+                                                        {project.proposalCount} proposals
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </Link>

@@ -94,4 +94,60 @@ router.delete('/photo', ensureAuthenticated, async (req, res) => {
     }
 });
 
+// Upload project thumbnail
+router.post('/project-thumbnail', ensureAuthenticated, upload.single('thumbnail'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                message: 'No file uploaded',
+                success: false
+            });
+        }
+
+        // Convert image to base64
+        const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+        res.status(200).json({
+            message: 'Thumbnail uploaded successfully',
+            success: true,
+            thumbnail: base64Image
+        });
+    } catch (error) {
+        console.error('Thumbnail upload error:', error);
+        res.status(500).json({
+            message: error.message || 'Failed to upload thumbnail',
+            success: false
+        });
+    }
+});
+
+// Upload project images (multiple)
+router.post('/project-images', ensureAuthenticated, upload.array('images', 5), async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({
+                message: 'No files uploaded',
+                success: false
+            });
+        }
+
+        // Convert each image to base64
+        const base64Images = req.files.map(file =>
+            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`
+        );
+
+        res.status(200).json({
+            message: 'Images uploaded successfully',
+            success: true,
+            images: base64Images
+        });
+    } catch (error) {
+        console.error('Images upload error:', error);
+        res.status(500).json({
+            message: error.message || 'Failed to upload images',
+            success: false
+        });
+    }
+});
+
 module.exports = router;

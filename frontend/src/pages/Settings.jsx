@@ -401,6 +401,54 @@ function ProfileSection({ settings, onUpdate }) {
                     </div>
                 </div>
 
+                {/* Role Card */}
+                <div className="p-3 bg-white border border-gray-100 rounded-lg">
+                    <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs text-gray-500 mb-1 font-light">Account Role</p>
+                            {editingField !== 'role' ? (
+                                <p className="text-sm text-gray-700 font-light capitalize truncate">{settings?.profile?.role || <span className="text-gray-400">Not set</span>}</p>
+                            ) : (
+                                <select
+                                    defaultValue={settings?.profile?.role}
+                                    id="role-input"
+                                    className="w-full px-2 py-1 text-sm rounded border border-gray-200 focus:border-green-600 focus:outline-none font-light bg-white"
+                                    autoFocus
+                                >
+                                    <option value="freelancer">Freelancer</option>
+                                    <option value="client">Client</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-1 ml-2">
+                            {editingField !== 'role' ? (
+                                <button onClick={() => setEditingField('role')} className="p-1 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition cursor-pointer">
+                                    <HiPencil size={14} />
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            updateField('role', document.getElementById('role-input').value);
+                                            setEditingField(null);
+                                        }}
+                                        className="p-1 text-green-600 hover:bg-green-50 rounded transition cursor-pointer"
+                                    >
+                                        <HiCheck size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingField(null)}
+                                        className="p-1 text-red-600 hover:bg-red-50 rounded transition cursor-pointer"
+                                    >
+                                        <HiX size={14} />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
                 {/* Location Card */}
                 <div className="p-3 bg-white border border-gray-100 rounded-lg">
                     <div className="flex items-start justify-between">
