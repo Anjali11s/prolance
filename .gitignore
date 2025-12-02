@@ -39,7 +39,7 @@ Thumbs.db
 # Editors and IDEs
 .idea/
 .vscode/
-.agent/workflows
+.agent
 *.sublime-project
 *.sublime-workspace
 *.code-workspace
@@ -48,7 +48,7 @@ Thumbs.db
 .settings/
 *.iml
 *.ipr
-.agent/workflows/
+.agent/
 *.iws
 
 # Dependency directories
