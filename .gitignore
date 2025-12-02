@@ -5,6 +5,7 @@ __pycache__/
 *.pyo
 *.egg-info/
 .pytest_cache/
+.agent/
 
 # Distribution / packaging
 .Python
@@ -36,6 +37,7 @@ Thumbs.db
 # Editors and IDEs
 .idea/
 .vscode/
+.agent/workflows
 *.sublime-project
 *.sublime-workspace
 *.code-workspace
