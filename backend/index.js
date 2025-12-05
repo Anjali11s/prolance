@@ -29,6 +29,12 @@ app.use('/api/settings', SettingsRouter)
 app.use('/api/upload', UploadRouter)
 app.use('/api/captcha', CaptchaRouter)
 
-app.listen(PORT, () => {
-    console.log(`Sever is running on http://localhost:${PORT}`)
-})
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => {
+        console.log(`Server is running on http://localhost:${PORT}`)
+    })
+}
+
+// Export for Vercel serverless
+module.exports = app;
