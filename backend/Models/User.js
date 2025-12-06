@@ -54,6 +54,14 @@ const UserSchema = new Schema({
         type: String,
         default: ''
     },
+    firebaseUid: {
+        type: String,
+        default: ''
+    },
+    photoURL: {
+        type: String,
+        default: ''
+    },
     bio: {
         type: String,
         default: ''
@@ -169,6 +177,22 @@ const UserSchema = new Schema({
     completedProjects: {
         type: Number,
         default: 0
+    },
+    resetOTP: {
+        type: String,
+        default: ''
+    },
+    resetOTPExpires: {
+        type: Date,
+        default: null
+    },
+    resetOTPRequestCount: {
+        type: Number,
+        default: 0
+    },
+    lastOTPRequestTime: {
+        type: Date,
+        default: null
     }
 }, {
     timestamps: true

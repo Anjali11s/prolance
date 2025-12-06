@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
+import VerifyOTP from './pages/VerifyOTP'
+import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
 import Settings from './pages/Settings'
 import BrowseProjects from './pages/BrowseProjects'
@@ -41,6 +44,30 @@ function App() {
             element={
               <GuestRoute>
                 <Signup />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <GuestRoute>
+                <ForgotPassword />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/verify-otp"
+            element={
+              <GuestRoute>
+                <VerifyOTP />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <GuestRoute>
+                <ResetPassword />
               </GuestRoute>
             }
           />

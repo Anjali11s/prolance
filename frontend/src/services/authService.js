@@ -80,6 +80,35 @@ export const authService = {
     getCurrentUser: () => {
         return userManager.getUser();
     },
+
+    // Sync Firebase user with backend
+    syncFirebaseUser: async (firebaseUser) => {
+        try {
+            const response = await api.post('/auth/firebase-auth', {
+                email: firebaseUser.email,
+                name: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+                firebaseUid: firebaseUser.uid,
+                photoURL: firebaseUser.photoURL
+            });
+
+            const { jwtToken, name, email: userEmail, role, userId, username } = response.data;
+
+            // Save token and user data from backend
+            tokenManager.setToken(jwtToken);
+            userManager.setUser({
+                name,
+                email: userEmail,
+                role,
+                userId,
+                username,
+                photoURL: firebaseUser.photoURL
+            });
+
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || { message: 'Firebase sync failed', success: false };
+        }
+    },
 };
 
 export default authService;

@@ -113,7 +113,114 @@ const login = async (req, res) => {
     }
 }
 
+// Firebase account linking - check if email exists and link or create account
+const firebaseAuth = async (req, res) => {
+    try {
+        const { email, name, firebaseUid, photoURL } = req.body;
+
+        if (!email) {
+            return res.status(400).json({
+                message: 'Email is required',
+                success: false
+            });
+        }
+
+        // Check if user with this email already exists
+        let user = await UserModel.findOne({ email });
+
+        if (user) {
+            // User exists - link Firebase account
+            // Update firebaseUid if not already set
+            if (!user.firebaseUid) {
+                user.firebaseUid = firebaseUid;
+                await user.save();
+            }
+
+            // Generate JWT token for existing user
+            const jwtToken = jwt.sign(
+                { email: user.email, _id: user._id },
+                process.env.JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+
+            return res.status(200).json({
+                message: "Logged in with existing account",
+                success: true,
+                jwtToken,
+                email: user.email,
+                name: user.name,
+                username: user.username,
+                role: user.role,
+                userId: user._id,
+                linkedAccount: true
+            });
+        } else {
+            // User doesn't exist - create new account
+            const emailUsername = email.split('@')[0].toLowerCase();
+            let generatedUsername = emailUsername.replace(/[^a-z0-9_-]/g, '');
+
+            if (generatedUsername.length < 3) {
+                generatedUsername = generatedUsername.padEnd(3, '0');
+            }
+
+            if (generatedUsername.length > 20) {
+                generatedUsername = generatedUsername.substring(0, 20);
+            }
+
+            // Check if username already exists, if so, append a number
+            let username = generatedUsername;
+            let counter = 1;
+            while (await UserModel.findOne({ username })) {
+                username = `${generatedUsername}${counter}`;
+                if (username.length > 20) {
+                    generatedUsername = generatedUsername.substring(0, 20 - counter.toString().length);
+                    username = `${generatedUsername}${counter}`;
+                }
+                counter++;
+            }
+
+            // Create new user with Firebase data
+            const newUser = new UserModel({
+                name: name || email.split('@')[0],
+                email,
+                username,
+                firebaseUid,
+                photoURL,
+                role: 'freelancer', // Default role
+                password: await bcrypt.hash(Math.random().toString(36), 10) // Random password for Firebase users
+            });
+
+            await newUser.save();
+
+            const jwtToken = jwt.sign(
+                { email: newUser.email, _id: newUser._id },
+                process.env.JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+
+            return res.status(201).json({
+                message: "Account created successfully",
+                success: true,
+                jwtToken,
+                email: newUser.email,
+                name: newUser.name,
+                username: newUser.username,
+                role: newUser.role,
+                userId: newUser._id,
+                newAccount: true
+            });
+        }
+    } catch (err) {
+        console.error('Firebase auth error:', err);
+        res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
+    }
+}
+
 module.exports = {
     signup,
-    login
+    login,
+    firebaseAuth
 }

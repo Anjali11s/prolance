@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { HiOutlinePhotograph, HiOutlineX, HiCheck } from 'react-icons/hi';
 import axios from 'axios';
 import ReactCrop from 'react-image-crop';
+import { FaUpload } from "react-icons/fa6";
 import 'react-image-crop/dist/ReactCrop.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
