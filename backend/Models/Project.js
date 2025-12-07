@@ -68,6 +68,11 @@ const ProjectSchema = new Schema({
         ref: 'proposals',
         default: null
     },
+    assignedFreelancerId: {
+        type: Schema.Types.ObjectId,
+        ref: 'users',
+        default: null
+    },
     attachments: {
         type: [{
             name: String,
@@ -106,7 +111,71 @@ const ProjectSchema = new Schema({
     images: {
         type: [String],
         default: []
-    }
+    },
+    // Workspace fields for freelancer project management
+    workStatus: {
+        type: String,
+        enum: ['planning', 'designing', 'development', 'testing', 'review', 'completed'],
+        default: 'planning'
+    },
+    phaseHistory: [{
+        phase: {
+            type: String,
+            enum: ['planning', 'designing', 'development', 'testing', 'review', 'completed']
+        },
+        completedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    progressPercentage: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+    },
+    milestones: [{
+        title: {
+            type: String,
+            required: true
+        },
+        description: String,
+        status: {
+            type: String,
+            enum: ['pending', 'in-progress', 'completed'],
+            default: 'pending'
+        },
+        dueDate: Date,
+        completedAt: Date,
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    deliverables: [{
+        title: {
+            type: String,
+            required: true
+        },
+        description: String,
+        fileUrl: String,
+        fileName: String,
+        fileSize: Number,
+        uploadedAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    workNotes: [{
+        note: {
+            type: String,
+            required: true
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }]
 }, {
     timestamps: true
 });

@@ -5,12 +5,22 @@ const express = require('express')
 const app = express();
 const bodyParser = require('body-parser');
 const cors = require('cors')
+const http = require('http');
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+
 const AuthRouter = require('./Routes/AuthRouter')
 const UserRouter = require('./Routes/UserRouter')
 const ProjectRouter = require('./Routes/ProjectRouter')
 const SettingsRouter = require('./Routes/SettingsRouter')
 const UploadRouter = require('./Routes/UploadRouter')
 const CaptchaRouter = require('./Routes/CaptchaRouter')
+const ApplicationRouter = require('./Routes/ApplicationRouter')
+const ChatRouter = require('./Routes/ChatRouter')
+const ContractRouter = require('./Routes/ContractRouter')
+const MessageModel = require('./Models/Message')
+const ConversationModel = require('./Models/Conversation')
+
 require('./Models/db')
 const PORT = process.env.PORT || 8080;
 
@@ -28,11 +38,169 @@ app.use('/api/projects', ProjectRouter)
 app.use('/api/settings', SettingsRouter)
 app.use('/api/upload', UploadRouter)
 app.use('/api/captcha', CaptchaRouter)
+app.use('/api/applications', ApplicationRouter)
+app.use('/api/chat', ChatRouter)
+app.use('/api/contracts', ContractRouter)
+
+
+// Create HTTP server and Socket.IO
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
+});
+
+// Socket.IO authentication middleware
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+        return next(new Error('Authentication error'));
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        socket.userId = decoded._id;
+        next();
+    } catch (err) {
+        next(new Error('Authentication error'));
+    }
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+    console.log(`User connected: ${socket.userId}`);
+
+    // Join user's personal room
+    socket.join(`user:${socket.userId}`);
+
+    // Join a conversation
+    socket.on('join-conversation', async (conversationId) => {
+        try {
+            // Verify user is a participant
+            const conversation = await ConversationModel.findById(conversationId);
+            if (conversation && conversation.participants.some(p => p.toString() === socket.userId)) {
+                socket.join(`conversation:${conversationId}`);
+                console.log(`User ${socket.userId} joined conversation ${conversationId}`);
+            }
+        } catch (err) {
+            console.error('Error joining conversation:', err);
+        }
+    });
+
+    // Leave a conversation
+    socket.on('leave-conversation', (conversationId) => {
+        socket.leave(`conversation:${conversationId}`);
+        console.log(`User ${socket.userId} left conversation ${conversationId}`);
+    });
+
+    // Handle new message
+    socket.on('send-message', async (data) => {
+        try {
+            const { conversationId, content } = data;
+
+            // Verify user is a participant
+            const conversation = await ConversationModel.findById(conversationId);
+            if (!conversation || !conversation.participants.some(p => p.toString() === socket.userId)) {
+                return;
+            }
+
+            // Create message
+            const message = new MessageModel({
+                conversationId,
+                senderId: socket.userId,
+                content: content.trim()
+            });
+
+            await message.save();
+
+            // Update conversation
+            conversation.lastMessage = {
+                content: content.trim(),
+                senderId: socket.userId,
+                createdAt: message.createdAt
+            };
+            conversation.lastMessageAt = message.createdAt;
+            await conversation.save();
+
+            // Populate sender info
+            await message.populate('senderId', 'name avatar');
+
+            // Broadcast to conversation room
+            io.to(`conversation:${conversationId}`).emit('new-message', {
+                message,
+                conversationId
+            });
+
+            // Notify the other participant
+            const recipientId = conversation.participants.find(p => p.toString() !== socket.userId);
+            if (recipientId) {
+                io.to(`user:${recipientId}`).emit('conversation-updated', {
+                    conversationId,
+                    lastMessage: conversation.lastMessage
+                });
+            }
+        } catch (err) {
+            console.error('Error sending message:', err);
+            socket.emit('message-error', { error: 'Failed to send message' });
+        }
+    });
+
+    // Handle typing indicator
+    socket.on('typing', ({ conversationId, isTyping }) => {
+        socket.to(`conversation:${conversationId}`).emit('user-typing', {
+            userId: socket.userId,
+            isTyping
+        });
+    });
+
+    // Handle message read
+    socket.on('mark-read', async ({ conversationId }) => {
+        try {
+            await MessageModel.updateMany(
+                {
+                    conversationId,
+                    senderId: { $ne: socket.userId },
+                    read: false
+                },
+                {
+                    $set: { read: true, readAt: new Date() }
+                }
+            );
+
+            socket.to(`conversation:${conversationId}`).emit('messages-read', {
+                conversationId,
+                readBy: socket.userId
+            });
+        } catch (err) {
+            console.error('Error marking messages as read:', err);
+        }
+    });
+
+    // Join a project workspace
+    socket.on('join-project', (projectId) => {
+        socket.join(`project:${projectId}`);
+        console.log(`User ${socket.userId} joined project ${projectId}`);
+    });
+
+    // Leave a project workspace
+    socket.on('leave-project', (projectId) => {
+        socket.leave(`project:${projectId}`);
+        console.log(`User ${socket.userId} left project ${projectId}`);
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`User disconnected: ${socket.userId}`);
+    });
+});
 
 // Start server for Render/Railway/Heroku (or local dev)
 // Don't start server on Vercel (serverless)
 if (!process.env.VERCEL) {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`)
     })
 }

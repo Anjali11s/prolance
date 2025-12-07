@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -14,6 +14,8 @@ import MyProjects from './pages/MyProjects'
 import ProjectDetail from './pages/ProjectDetail'
 import UserProfile from './pages/UserProfile'
 import Support from './pages/Support'
+import Chat from './pages/Chat'
+import ProjectWorkspace from './pages/ProjectWorkspace'
 import ProtectedRoute from './components/ProtectedRoute'
 import ClientRoute from './components/ClientRoute'
 import FreelancerRoute from './components/FreelancerRoute'
@@ -23,12 +25,15 @@ import SearchCommand from './components/ui/SearchCommand'
 import './App.css'
 
 function App() {
+  const location = useLocation();
+  const isChatPage = location.pathname === '/messages';
+
   return (
     <>
       <div className='overflow-x-hidden'>
 
         <Navbar />
-        <SearchCommand />
+        {!isChatPage && <SearchCommand />}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route
@@ -117,6 +122,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/project-workspace/:id"
+            element={
+              <ProtectedRoute>
+                <ProjectWorkspace />
               </ProtectedRoute>
             }
           />

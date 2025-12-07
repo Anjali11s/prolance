@@ -213,6 +213,8 @@ function ProfileSection({ settings, onUpdate }) {
     const [photoOperation, setPhotoOperation] = useState(null); // 'uploading', 'removing', or null
     const [message, setMessage] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const [countdown, setCountdown] = useState(5);
     const countryOptions = useMemo(() => countryList().getData(), []);
 
     useEffect(() => {
@@ -221,16 +223,42 @@ function ProfileSection({ settings, onUpdate }) {
         }
     }, [settings]);
 
+    // Countdown timer for logout
+    useEffect(() => {
+        if (showLogoutModal && countdown > 0) {
+            const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+            return () => clearTimeout(timer);
+        } else if (showLogoutModal && countdown === 0) {
+            handleLogout();
+        }
+    }, [showLogoutModal, countdown]);
+
+    const handleLogout = () => {
+        localStorage.clear();
+        window.location.href = '/login';
+    };
+
     const updateField = async (field, value) => {
         try {
             const token = localStorage.getItem('authToken');
+
+            // Check if role is being changed
+            const isRoleChange = field === 'role' && value !== settings?.profile?.role;
+
             await axios.put(`${API_URL}/api/settings/profile`, { [field]: value }, {
                 headers: { Authorization: token }
             });
+
             setMessage('Updated successfully!');
             setIsSuccess(true);
             setTimeout(() => setMessage(''), 2000);
             onUpdate();
+
+            // Show logout modal if role changed
+            if (isRoleChange) {
+                setShowLogoutModal(true);
+                setCountdown(5);
+            }
         } catch (error) {
             setMessage('Failed to update');
             setIsSuccess(false);
@@ -676,6 +704,42 @@ function ProfileSection({ settings, onUpdate }) {
                     </div>
                 </div>
             </div>
+
+            {/* Logout Countdown Modal */}
+            {showLogoutModal && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white rounded-lg max-w-md w-full p-8 text-center shadow-2xl"
+                    >
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <HiOutlineLockClosed className="text-green-600" size={32} />
+                        </div>
+
+                        <h3 className="text-xl font-medium text-gray-800 mb-2">Role Updated Successfully!</h3>
+                        <p className="text-sm text-gray-600 font-light mb-6">
+                            Your account role has been changed. You need to log out and log back in for the changes to take effect.
+                        </p>
+
+                        <div className="mb-6">
+                            <div className="w-20 h-20 bg-green-50 border-4 border-green-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <span className="text-3xl font-bold text-green-600">{countdown}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 font-light">
+                                Logging out automatically in {countdown} second{countdown !== 1 ? 's' : ''}...
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={handleLogout}
+                            className="w-full px-6 py-3 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition font-medium"
+                        >
+                            Logout Now
+                        </button>
+                    </motion.div>
+                </div>
+            )}
         </motion.div>
     );
 }

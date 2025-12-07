@@ -29,8 +29,12 @@ export default function Navbar() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [applicationNotifications, setApplicationNotifications] = useState([]);
+  const [appNotifCount, setAppNotifCount] = useState(0);
   const dropdownRef = useRef(null);
   const notificationRef = useRef(null);
+
+  const isClient = user?.role === 'client' || user?.role === 'both';
 
   // Helper function to check if a path is active
   const isActive = (path) => {
@@ -59,6 +63,32 @@ export default function Navbar() {
     fetchUserProfile();
   }, [isAuthenticated]);
 
+  // Fetch application notifications for clients
+  useEffect(() => {
+    const fetchApplicationNotifications = async () => {
+      if (isAuthenticated && isClient) {
+        try {
+          const token = localStorage.getItem('authToken');
+          const response = await axios.get(`${API_URL}/api/applications/pending/count`, {
+            headers: { Authorization: token }
+          });
+          setAppNotifCount(response.data.pendingCount || 0);
+          setApplicationNotifications(response.data.recentApplications || []);
+        } catch (error) {
+          console.error('Error fetching application notifications:', error);
+        }
+      }
+    };
+
+    fetchApplicationNotifications();
+
+    // Poll every 30 seconds for clients
+    if (isAuthenticated && isClient) {
+      const interval = setInterval(fetchApplicationNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, isClient]);
+
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -85,10 +115,22 @@ export default function Navbar() {
     };
   }, [isDropdownOpen, isNotificationOpen]);
 
-  const handleNotificationClick = () => {
+  const handleNotificationClick = async () => {
     setIsNotificationOpen(!isNotificationOpen);
-    if (!isNotificationOpen && notificationCount > 0) {
-      // Mark as seen when opening notifications
+
+    // Refresh application notifications for clients when opening
+    if (!isNotificationOpen && isClient) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await axios.get(`${API_URL}/api/applications/pending/count`, {
+          headers: { Authorization: token }
+        });
+        setAppNotifCount(response.data.pendingCount || 0);
+        setApplicationNotifications(response.data.recentApplications || []);
+      } catch (error) {
+        console.error('Error refreshing notifications:', error);
+      }
+    } else if (!isNotificationOpen && notificationCount > 0) {
       setTimeout(() => markAsSeen(), 500);
     }
   };
@@ -221,9 +263,9 @@ export default function Navbar() {
                 title="Notifications"
               >
                 <HiOutlineBell size={18} />
-                {notificationCount > 0 && (
+                {(isClient ? appNotifCount : notificationCount) > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-medium rounded-full flex items-center justify-center px-1">
-                    {notificationCount > 9 ? '9+' : notificationCount}
+                    {(isClient ? appNotifCount : notificationCount) > 9 ? '9+' : (isClient ? appNotifCount : notificationCount)}
                   </span>
                 )}
               </button>
@@ -233,65 +275,121 @@ export default function Navbar() {
                 <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-100 rounded-lg shadow-lg py-2 z-50 max-h-96 overflow-y-auto">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <h3 className="text-sm font-medium text-gray-700">
-                      Recent Projects {notificationCount > 0 && `(${notificationCount} new)`}
+                      {isClient ? (
+                        <>
+                          Project Applications {appNotifCount > 0 && `(${appNotifCount} pending)`}
+                        </>
+                      ) : (
+                        <>
+                          Recent Projects {notificationCount > 0 && `(${notificationCount} new)`}
+                        </>
+                      )}
                     </h3>
                   </div>
 
-                  {recentProjects.length === 0 ? (
-                    <div className="px-4 py-8 text-center">
-                      <HiOutlineBell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500 font-light">No projects available</p>
-                    </div>
-                  ) : (
-                    <div className="py-1">
-                      {recentProjects.map((project) => {
-                        const isNew = newProjectIds.includes(project._id);
-                        return (
+                  {isClient ? (
+                    /* Application Notifications for Clients */
+                    applicationNotifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <HiOutlineBell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500 font-light">No pending applications</p>
+                      </div>
+                    ) : (
+                      <div className="py-1">
+                        {applicationNotifications.map((app) => (
                           <Link
-                            key={project._id}
-                            to={`/projects/${project._id}`}
+                            key={app._id}
+                            to="/my-projects"
                             onClick={() => setIsNotificationOpen(false)}
-                            className={`block px-4 py-3 hover:bg-gray-50 transition border-b border-gray-50 last:border-0 ${isNew ? 'bg-green-50/30' : ''
-                              }`}
+                            className="block px-4 py-3 hover:bg-gray-50 transition border-b border-gray-50 last:border-0"
                           >
                             <div className="flex gap-3">
-                              <div className="relative">
-                                {project.thumbnail ? (
-                                  <img
-                                    src={project.thumbnail}
-                                    alt={project.title}
-                                    className="w-12 h-12 object-cover rounded border border-gray-200 flex-shrink-0"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 bg-gradient-to-br from-green-50 to-gray-50 rounded flex items-center justify-center flex-shrink-0">
-                                    <HiOutlineBriefcase size={20} className="text-gray-400" />
-                                  </div>
-                                )}
-                                {isNew && (
-                                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
-                                )}
-                              </div>
+                              {app.freelancerId?.avatar ? (
+                                <img
+                                  src={app.freelancerId.avatar}
+                                  alt={app.freelancerId.name}
+                                  className="w-10 h-10 rounded-full object-cover border border-gray-200 flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-light border border-gray-200 flex-shrink-0">
+                                  {app.freelancerId?.name?.charAt(0).toUpperCase()}
+                                </div>
+                              )}
 
                               <div className="flex-1 min-w-0">
-                                <h4 className={`text-sm font-light line-clamp-1 mb-1 ${isNew ? 'text-gray-900 font-normal' : 'text-gray-700'
-                                  }`}>
-                                  {project.title}
-                                </h4>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-green-600 font-light">
-                                    ₹{project.budget.min.toLocaleString()}+
-                                  </span>
-                                  <div className="flex items-center gap-1 text-xs text-gray-400">
-                                    <HiOutlineClock size={12} />
-                                    {getTimeSince(project.createdAt)}
-                                  </div>
-                                </div>
+                                <p className="text-sm font-light text-gray-800 mb-0.5">
+                                  <span className="font-normal">{app.freelancerId?.name}</span> applied to
+                                </p>
+                                <p className="text-xs text-gray-600 font-light truncate mb-1">
+                                  {app.projectId?.title}
+                                </p>
+                                <p className="text-xs text-gray-400 font-light">
+                                  {getTimeSince(app.createdAt)}
+                                </p>
                               </div>
                             </div>
                           </Link>
-                        );
-                      })}
-                    </div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    /* Project Notifications for Freelancers */
+                    recentProjects.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <HiOutlineBell className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500 font-light">No projects available</p>
+                      </div>
+                    ) : (
+                      <div className="py-1">
+                        {recentProjects.map((project) => {
+                          const isNew = newProjectIds.includes(project._id);
+                          return (
+                            <Link
+                              key={project._id}
+                              to={`/projects/${project._id}`}
+                              onClick={() => setIsNotificationOpen(false)}
+                              className={`block px-4 py-3 hover:bg-gray-50 transition border-b border-gray-50 last:border-0 ${isNew ? 'bg-green-50/30' : ''
+                                }`}
+                            >
+                              <div className="flex gap-3">
+                                <div className="relative">
+                                  {project.thumbnail ? (
+                                    <img
+                                      src={project.thumbnail}
+                                      alt={project.title}
+                                      className="w-12 h-12 object-cover rounded border border-gray-200 flex-shrink-0"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 bg-gradient-to-br from-green-50 to-gray-50 rounded flex items-center justify-center flex-shrink-0">
+                                      <HiOutlineBriefcase size={20} className="text-gray-400" />
+                                    </div>
+                                  )}
+                                  {isNew && (
+                                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white"></span>
+                                  )}
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                  <h4 className={`text-sm font-light line-clamp-1 mb-1 ${isNew ? 'text-gray-900 font-normal' : 'text-gray-700'
+                                    }`}>
+                                    {project.title}
+                                  </h4>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-green-600 font-light">
+                                      ₹{project.budget.min.toLocaleString()}+
+                                    </span>
+                                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                                      <HiOutlineClock size={12} />
+                                      {getTimeSince(project.createdAt)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )
                   )}
                 </div>
               )}

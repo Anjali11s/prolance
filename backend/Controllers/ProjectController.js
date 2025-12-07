@@ -186,18 +186,34 @@ const getProjectById = async (req, res) => {
     }
 };
 
-// Get user's posted projects (Client)
+// Get user's posted projects (Client) and assigned projects (Freelancer)
 const getMyProjects = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { status } = req.query;
+        const { status, role } = req.query;
 
-        let query = { clientId: userId };
+        let query = {};
+
+        // If role is specified, filter by that role
+        if (role === 'client') {
+            query.clientId = userId;
+        } else if (role === 'freelancer') {
+            query.assignedFreelancerId = userId;
+        } else {
+            // Default: show both client projects and assigned projects
+            query.$or = [
+                { clientId: userId },
+                { assignedFreelancerId: userId }
+            ];
+        }
+
         if (status) {
             query.status = status;
         }
 
         const projects = await ProjectModel.find(query)
+            .populate('clientId', 'name avatar')
+            .populate('assignedFreelancerId', 'name avatar')
             .sort({ createdAt: -1 });
 
         res.status(200).json({
@@ -299,11 +315,407 @@ const deleteProject = async (req, res) => {
     }
 };
 
+// Get project workspace (Freelancer or Client)
+const getProjectWorkspace = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+
+        const project = await ProjectModel.findById(id)
+            .populate('clientId', 'name avatar email')
+            .populate('assignedFreelancerId', 'name avatar email');
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        // Check if user is assigned freelancer or client
+        const isFreelancer = project.assignedFreelancerId &&
+            project.assignedFreelancerId._id.toString() === userId.toString();
+        const isClient = project.clientId._id.toString() === userId.toString();
+
+        if (!isFreelancer && !isClient) {
+            return res.status(403).json({
+                message: 'You are not authorized to access this workspace',
+                success: false
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            project,
+            userRole: isFreelancer ? 'freelancer' : 'client'
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
+// Update work status
+const updateWorkStatus = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { workStatus } = req.body;
+
+        const project = await ProjectModel.findById(id);
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        // Only assigned freelancer can update
+        if (!project.assignedFreelancerId ||
+            project.assignedFreelancerId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only assigned freelancer can update work status',
+                success: false
+            });
+        }
+
+        // Update status and add to phase history
+        project.workStatus = workStatus;
+        project.phaseHistory.push({
+            phase: workStatus,
+            completedAt: new Date()
+        });
+        await project.save();
+
+        // Emit Socket.io event with phase history
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('work-status-updated', {
+                projectId: id,
+                workStatus,
+                phaseHistory: project.phaseHistory
+            });
+        }
+
+        res.status(200).json({
+            message: 'Work status updated successfully',
+            success: true,
+            workStatus: project.workStatus
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
+// Add milestone
+const addMilestone = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { title, description, dueDate } = req.body;
+
+        const project = await ProjectModel.findById(id);
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        if (!project.assignedFreelancerId ||
+            project.assignedFreelancerId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only assigned freelancer can add milestones',
+                success: false
+            });
+        }
+
+        const milestone = {
+            title,
+            description,
+            dueDate: dueDate ? new Date(dueDate) : null,
+            status: 'pending'
+        };
+
+        project.milestones.push(milestone);
+        await project.save();
+
+        const addedMilestone = project.milestones[project.milestones.length - 1];
+
+        // Emit Socket.io event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('milestone-added', {
+                projectId: id,
+                milestone: addedMilestone
+            });
+        }
+
+        res.status(201).json({
+            message: 'Milestone added successfully',
+            success: true,
+            milestone: addedMilestone
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
+// Update milestone
+const updateMilestone = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id, milestoneId } = req.params;
+        const { status, title, description, dueDate } = req.body;
+
+        const project = await ProjectModel.findById(id);
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        if (!project.assignedFreelancerId ||
+            project.assignedFreelancerId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only assigned freelancer can update milestones',
+                success: false
+            });
+        }
+
+        const milestone = project.milestones.id(milestoneId);
+        if (!milestone) {
+            return res.status(404).json({
+                message: 'Milestone not found',
+                success: false
+            });
+        }
+
+        if (title) milestone.title = title;
+        if (description) milestone.description = description;
+        if (dueDate) milestone.dueDate = new Date(dueDate);
+        if (status) {
+            milestone.status = status;
+            if (status === 'completed') {
+                milestone.completedAt = new Date();
+            }
+        }
+
+        await project.save();
+
+        // Emit Socket.io event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('milestone-updated', {
+                projectId: id,
+                milestone
+            });
+        }
+
+        res.status(200).json({
+            message: 'Milestone updated successfully',
+            success: true,
+            milestone
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
+// Add deliverable
+const addDeliverable = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { title, description, fileUrl, fileName, fileSize } = req.body;
+
+        const project = await ProjectModel.findById(id);
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        if (!project.assignedFreelancerId ||
+            project.assignedFreelancerId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only assigned freelancer can add deliverables',
+                success: false
+            });
+        }
+
+        const deliverable = {
+            title,
+            description,
+            fileUrl,
+            fileName,
+            fileSize
+        };
+
+        project.deliverables.push(deliverable);
+        await project.save();
+
+        const addedDeliverable = project.deliverables[project.deliverables.length - 1];
+
+        // Emit Socket.io event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('deliverable-added', {
+                projectId: id,
+                deliverable: addedDeliverable
+            });
+        }
+
+        res.status(201).json({
+            message: 'Deliverable added successfully',
+            success: true,
+            deliverable: addedDeliverable
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
+// Add work note
+const addWorkNote = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { note } = req.body;
+
+        const project = await ProjectModel.findById(id);
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        if (!project.assignedFreelancerId ||
+            project.assignedFreelancerId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only assigned freelancer can add work notes',
+                success: false
+            });
+        }
+
+        const workNote = { note };
+        project.workNotes.push(workNote);
+        await project.save();
+
+        const addedNote = project.workNotes[project.workNotes.length - 1];
+
+        // Emit Socket.io event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('work-note-added', {
+                projectId: id,
+                workNote: addedNote
+            });
+        }
+
+        res.status(201).json({
+            message: 'Work note added successfully',
+            success: true,
+            workNote: addedNote
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
+// Update progress percentage
+const updateProgress = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { progressPercentage } = req.body;
+
+        const project = await ProjectModel.findById(id);
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        if (!project.assignedFreelancerId ||
+            project.assignedFreelancerId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only assigned freelancer can update progress',
+                success: false
+            });
+        }
+
+        project.progressPercentage = Math.min(100, Math.max(0, progressPercentage));
+        await project.save();
+
+        // Emit Socket.io event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('progress-updated', {
+                projectId: id,
+                progressPercentage: project.progressPercentage
+            });
+        }
+
+        res.status(200).json({
+            message: 'Progress updated successfully',
+            success: true,
+            progressPercentage: project.progressPercentage
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
 module.exports = {
     createProject,
     getAllProjects,
     getProjectById,
     getMyProjects,
     updateProject,
-    deleteProject
+    deleteProject,
+    getProjectWorkspace,
+    updateWorkStatus,
+    addMilestone,
+    updateMilestone,
+    addDeliverable,
+    addWorkNote,
+    updateProgress
 };

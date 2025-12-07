@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import axios from 'axios';
+import ApplicationModal from '../components/ApplicationModal';
 import {
     HiOutlineArrowLeft,
     HiOutlineClock,
@@ -25,6 +26,8 @@ export default function ProjectDetail() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedImage, setSelectedImage] = useState(0);
+    const [showApplicationModal, setShowApplicationModal] = useState(false);
+    const [applicationSuccess, setApplicationSuccess] = useState(false);
 
     useEffect(() => {
         fetchProject();
@@ -283,30 +286,49 @@ export default function ProjectDetail() {
                                 <p className="text-xs text-gray-500 font-light">{project.budget.type} price</p>
                             </div>
 
-                            <button
-                                disabled={isOwner || !isAuthenticated}
-                                onClick={(e) => {
-                                    if (!isAuthenticated) {
-                                        e.preventDefault();
-                                        navigate('/login');
-                                    } else if (isOwner) {
-                                        e.preventDefault();
+                            {applicationSuccess ? (
+                                <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 font-light mb-3">
+                                    ✓ Application submitted successfully! The client will review your application.
+                                </div>
+                            ) : (
+                                <button
+                                    disabled={isOwner || !isAuthenticated}
+                                    onClick={(e) => {
+                                        if (!isAuthenticated) {
+                                            e.preventDefault();
+                                            navigate('/login');
+                                        } else if (isOwner) {
+                                            e.preventDefault();
+                                        } else {
+                                            setShowApplicationModal(true);
+                                        }
+                                    }}
+                                    className={`w-full px-4 py-3 text-sm rounded-lg transition font-light mb-3 cursor-pointer ${isOwner || !isAuthenticated
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-green-600 text-white hover:bg-green-700'
+                                        }`}
+                                    title={
+                                        !isAuthenticated
+                                            ? 'Login to apply for this project'
+                                            : isOwner
+                                                ? 'You cannot apply to your own project'
+                                                : 'Apply for this project'
                                     }
-                                }}
-                                className={`w-full px-4 py-3 text-sm rounded-lg transition font-light mb-3 ${isOwner || !isAuthenticated
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-green-600 text-white hover:bg-green-700'
-                                    }`}
-                                title={
-                                    !isAuthenticated
-                                        ? 'Login to apply for this project'
-                                        : isOwner
-                                            ? 'You cannot apply to your own project'
-                                            : 'Apply for this project'
-                                }
-                            >
-                                {!isAuthenticated ? 'Login to Apply' : isOwner ? 'Your Project' : 'Apply for this Project'}
-                            </button>
+                                >
+                                    {!isAuthenticated ? 'Login to Apply' : isOwner ? 'Your Project' : 'Apply for this Project'}
+                                </button>
+                            )}
+
+                            {/* View Workspace Button (for clients with assigned freelancer) */}
+                            {isOwner && project.assignedFreelancerId && (
+                                <Link
+                                    to={`/project-workspace/${project._id}`}
+                                    className="w-full px-4 py-3 text-sm rounded-lg transition font-light mb-3 cursor-pointer bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center gap-2"
+                                >
+                                    <HiOutlineBriefcase size={16} />
+                                    View Workspace & Track Progress
+                                </Link>
+                            )}
 
                             <div className="pt-4 border-t border-gray-100">
                                 <p className="text-xs text-gray-500 font-light mb-2">PROJECT TIMELINE</p>
@@ -356,6 +378,17 @@ export default function ProjectDetail() {
                     </div>
                 </div>
             </div>
+
+            {/* Application Modal */}
+            <ApplicationModal
+                isOpen={showApplicationModal}
+                onClose={() => setShowApplicationModal(false)}
+                project={project}
+                onSuccess={() => {
+                    setShowApplicationModal(false);
+                    setApplicationSuccess(true);
+                }}
+            />
         </div>
     );
 }
