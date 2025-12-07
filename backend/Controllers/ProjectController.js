@@ -669,6 +669,68 @@ const addWorkNote = async (req, res) => {
     }
 };
 
+// Delete a deliverable
+const deleteDeliverable = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id, deliverableId } = req.params;
+
+        const project = await ProjectModel.findById(id);
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        // Only assigned freelancer can delete deliverables
+        if (!project.assignedFreelancerId ||
+            project.assignedFreelancerId.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only assigned freelancer can delete deliverables',
+                success: false
+            });
+        }
+
+        // Find and remove the deliverable
+        const deliverableIndex = project.deliverables.findIndex(
+            d => d._id.toString() === deliverableId
+        );
+
+        if (deliverableIndex === -1) {
+            return res.status(404).json({
+                message: 'Deliverable not found',
+                success: false
+            });
+        }
+
+        project.deliverables.splice(deliverableIndex, 1);
+        await project.save();
+
+        // Emit Socket.io event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('deliverable-deleted', {
+                projectId: id,
+                deliverableId
+            });
+        }
+
+        res.status(200).json({
+            message: 'Deliverable deleted successfully',
+            success: true,
+            project
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
 // Update progress percentage
 const updateProgress = async (req, res) => {
     try {
@@ -738,7 +800,7 @@ const submitWork = async (req, res) => {
 
         // Only assigned freelancer can submit
         if (!project.assignedFreelancerId ||
-            project.assignedFreelancerId.toString() !== userId.toString()) {
+            project.assignedFreelancerId._id.toString() !== userId.toString()) {
             return res.status(403).json({
                 message: 'Only assigned freelancer can submit work',
                 success: false
@@ -829,7 +891,7 @@ const acceptProject = async (req, res) => {
         }
 
         // Only client can accept
-        if (project.clientId.toString() !== userId.toString()) {
+        if (project.clientId._id.toString() !== userId.toString()) {
             return res.status(403).json({
                 message: 'Only the project client can accept and close the project',
                 success: false
@@ -901,6 +963,93 @@ const acceptProject = async (req, res) => {
     }
 };
 
+// Client requests review/changes on completed work
+const requestReview = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { comments } = req.body;
+
+        const project = await ProjectModel.findById(id)
+            .populate('clientId', 'name')
+            .populate('assignedFreelancerId', 'name');
+
+        if (!project) {
+            return res.status(404).json({
+                message: 'Project not found',
+                success: false
+            });
+        }
+
+        // Only client can request review
+        if (project.clientId._id.toString() !== userId.toString()) {
+            return res.status(403).json({
+                message: 'Only the project client can request review',
+                success: false
+            });
+        }
+
+        // Validate project is in completed status
+        if (project.status !== 'completed') {
+            return res.status(400).json({
+                message: 'Project must be completed before requesting review',
+                success: false
+            });
+        }
+
+        // Send back to review phase
+        project.workStatus = 'review';
+        project.status = 'in-progress';
+        await project.save();
+
+        // Create notification for freelancer
+        const freelancerNotification = {
+            type: 'review_requested',
+            title: 'Review Requested',
+            message: `${project.clientId.name || 'Client'} has requested changes on "${project.title}"${comments ? ': ' + comments : ''}`,
+            projectId: project._id,
+            read: false,
+            createdAt: new Date()
+        };
+
+        // Add notification to freelancer's notifications array
+        await UserModel.findByIdAndUpdate(
+            project.assignedFreelancerId._id,
+            { $push: { notifications: freelancerNotification } },
+            { new: true }
+        );
+
+        // Emit Socket.io event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(`project:${id}`).emit('review-requested', {
+                projectId: id,
+                status: 'in-progress',
+                workStatus: 'review',
+                comments
+            });
+            // Send notification to freelancer
+            io.to(`user:${project.assignedFreelancerId._id}`).emit('new-notification', freelancerNotification);
+        }
+
+        res.status(200).json({
+            message: 'Review requested successfully',
+            success: true,
+            project: {
+                id: project._id,
+                status: project.status,
+                workStatus: project.workStatus
+            }
+        });
+    } catch (err) {
+        res.status(500).json({
+            message: 'Internal server error',
+            success: false,
+            error: err.message
+        });
+    }
+};
+
 module.exports = {
     createProject,
     getAllProjects,
@@ -912,9 +1061,11 @@ module.exports = {
     updateWorkStatus,
     submitWork,
     acceptProject,
+    requestReview,
     addMilestone,
     updateMilestone,
     addDeliverable,
+    deleteDeliverable,
     addWorkNote,
     updateProgress
 };

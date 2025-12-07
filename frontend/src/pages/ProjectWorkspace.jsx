@@ -12,7 +12,8 @@ import {
     HiOutlineDownload,
     HiOutlineChevronRight,
     HiOutlineCheck,
-    HiOutlineReply
+    HiOutlineReply,
+    HiOutlineTrash
 } from 'react-icons/hi';
 import Timeline from '@mui/lab/Timeline';
 import TimelineItem from '@mui/lab/TimelineItem';
@@ -51,6 +52,9 @@ export default function ProjectWorkspace() {
     const [showSubmitModal, setShowSubmitModal] = useState(false);
     const [showAcceptModal, setShowAcceptModal] = useState(false);
     const [acceptingProject, setAcceptingProject] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewComments, setReviewComments] = useState('');
+    const [requestingReview, setRequestingReview] = useState(false);
 
     // Form states
     const [deliverableForm, setDeliverableForm] = useState({ title: '', description: '', fileUrl: '' });
@@ -195,6 +199,24 @@ export default function ProjectWorkspace() {
         }
     };
 
+    const handleDeleteDeliverable = async (deliverableId) => {
+        if (!window.confirm('Are you sure you want to delete this deliverable?')) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('authToken');
+            await axios.delete(
+                `${API_BASE_URL}/api/projects/${id}/deliverables/${deliverableId}`,
+                { headers: { Authorization: token } }
+            );
+            fetchWorkspace();
+        } catch (error) {
+            console.error('Error deleting deliverable:', error);
+            setError(error.response?.data?.message || 'Failed to delete deliverable');
+        }
+    };
+
     const handleAcceptProject = async () => {
         setAcceptingProject(true);
         try {
@@ -211,6 +233,26 @@ export default function ProjectWorkspace() {
             setError(err.response?.data?.message || 'Failed to accept project');
         } finally {
             setAcceptingProject(false);
+        }
+    };
+
+    const handleRequestReview = async () => {
+        try {
+            setRequestingReview(true);
+            const token = localStorage.getItem('authToken');
+            await axios.post(
+                `${API_BASE_URL}/api/projects/${id}/request-review`,
+                { comments: reviewComments },
+                { headers: { Authorization: token } }
+            );
+            setShowReviewModal(false);
+            setReviewComments('');
+            fetchWorkspace();
+        } catch (error) {
+            console.error('Error requesting review:', error);
+            setError(error.response?.data?.message || 'Failed to request review');
+        } finally {
+            setRequestingReview(false);
         }
     };
 
@@ -428,17 +470,28 @@ export default function ProjectWorkspace() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                {deliverable.fileUrl && (
-                                                    <a
-                                                        href={deliverable.fileUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="p-2 text-green-600 hover:bg-green-50 rounded transition"
-                                                        title="Download"
-                                                    >
-                                                        <HiOutlineDownload size={18} />
-                                                    </a>
-                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    {deliverable.fileUrl && (
+                                                        <a
+                                                            href={deliverable.fileUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="p-2 text-green-600 hover:bg-green-50 rounded transition"
+                                                            title="Download"
+                                                        >
+                                                            <HiOutlineDownload size={18} />
+                                                        </a>
+                                                    )}
+                                                    {isFreelancer && (
+                                                        <button
+                                                            onClick={() => handleDeleteDeliverable(deliverable._id)}
+                                                            className="p-2 text-red-500 hover:bg-red-50 rounded transition"
+                                                            title="Delete deliverable"
+                                                        >
+                                                            <HiOutlineTrash size={18} />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -449,18 +502,29 @@ export default function ProjectWorkspace() {
                                 </p>
                             )}
 
-                            {/* Client: Accept & Close Project Button */}
+                            {/* Client: Request Review & Accept Buttons */}
                             {!isFreelancer && project.status === 'completed' && project.deliverables?.length > 0 && (
                                 <div className="mt-6 pt-6 border-t border-gray-100">
-                                    <button
-                                        onClick={() => setShowAcceptModal(true)}
-                                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-light py-3 px-4 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm flex items-center justify-center gap-2"
-                                    >
-                                        <HiOutlineCheck size={20} />
-                                        Accept Deliverables & Close Project
-                                    </button>
-                                    <p className="text-xs text-gray-500 font-light mt-2 text-center">
-                                        This will finalize the project and mark it as successfully completed
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {/* Request Review Button */}
+                                        <button
+                                            onClick={() => setShowReviewModal(true)}
+                                            className="bg-gradient-to-r from-orange-500 to-orange-600 text-white font-light py-3 px-4 rounded-lg hover:from-orange-600 hover:to-orange-700 transition-all shadow-sm flex items-center justify-center gap-2"
+                                        >
+                                            <HiOutlineArrowLeft size={20} />
+                                            Request Review
+                                        </button>
+                                        {/* Accept & Close Button */}
+                                        <button
+                                            onClick={() => setShowAcceptModal(true)}
+                                            className="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-light py-3 px-4 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm flex items-center justify-center gap-2"
+                                        >
+                                            <HiOutlineCheck size={20} />
+                                            Accept & Close
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 font-light mt-3 text-center">
+                                        Request changes or accept the deliverables to finalize the project
                                     </p>
                                 </div>
                             )}
@@ -758,6 +822,63 @@ export default function ProjectWorkspace() {
                                     <>
                                         <HiOutlineCheck size={18} />
                                         Yes, Accept & Close
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Client: Request Review Modal */}
+            {showReviewModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white rounded-lg max-w-md w-full p-6"
+                    >
+                        <h3 className="text-lg font-light text-gray-800 mb-3">Request Review</h3>
+                        <p className="text-sm text-gray-600 font-light mb-4">
+                            Send the project back to the review phase to request changes or improvements.
+                        </p>
+                        <div className="mb-6">
+                            <label className="block text-sm text-gray-700 font-light mb-2">
+                                Comments / Feedback (Optional)
+                            </label>
+                            <textarea
+                                value={reviewComments}
+                                onChange={(e) => setReviewComments(e.target.value)}
+                                placeholder="Describe what needs to be changed or improved..."
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 resize-none font-light"
+                                rows={4}
+                            />
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowReviewModal(false);
+                                    setReviewComments('');
+                                }}
+                                disabled={requestingReview}
+                                className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition font-light disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRequestReview}
+                                disabled={requestingReview}
+                                className="flex-1 px-4 py-2 text-sm text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition font-light disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {requestingReview ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        Requesting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <HiOutlineArrowLeft size={18} />
+                                        Request Review
                                     </>
                                 )}
                             </button>

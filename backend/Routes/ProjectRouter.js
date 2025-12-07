@@ -12,9 +12,11 @@ const {
     updateWorkStatus,
     submitWork,
     acceptProject,
+    requestReview,
     addMilestone,
     updateMilestone,
     addDeliverable,
+    deleteDeliverable,
     addWorkNote,
     updateProgress
 } = require('../Controllers/ProjectController');
@@ -34,9 +36,11 @@ router.get('/:id/workspace', ensureAuthenticated, getProjectWorkspace);
 router.patch('/:id/work-status', ensureAuthenticated, updateWorkStatus);
 router.post('/:id/submit-work', ensureAuthenticated, submitWork);
 router.post('/:id/accept-project', ensureAuthenticated, acceptProject);
+router.post('/:id/request-review', ensureAuthenticated, requestReview);
 router.post('/:id/milestones', ensureAuthenticated, addMilestone);
 router.patch('/:id/milestones/:milestoneId', ensureAuthenticated, updateMilestone);
 router.post('/:id/deliverables', ensureAuthenticated, addDeliverable);
+router.delete('/:id/deliverables/:deliverableId', ensureAuthenticated, deleteDeliverable);
 router.post('/:id/work-notes', ensureAuthenticated, addWorkNote);
 router.patch('/:id/progress', ensureAuthenticated, updateProgress);
 
