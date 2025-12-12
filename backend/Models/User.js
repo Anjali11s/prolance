@@ -186,6 +186,10 @@ const UserSchema = new Schema({
         type: Number,
         default: 0
     },
+    profileViews: {
+        type: Number,
+        default: 0
+    },
     resetOTP: {
         type: String,
         default: ''
@@ -198,7 +202,7 @@ const UserSchema = new Schema({
     notifications: [{
         type: {
             type: String,
-            enum: ['project_completed', 'project_accepted', 'review_requested', 'application_received', 'application_accepted', 'message_received'],
+            enum: ['project_completed', 'project_accepted', 'review_requested', 'application_received', 'application_accepted', 'message_received', 'payment_received'],
             required: true
         },
         title: {

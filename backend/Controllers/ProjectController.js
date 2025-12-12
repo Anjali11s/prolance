@@ -873,7 +873,7 @@ const submitWork = async (req, res) => {
     }
 };
 
-// Client accepts project and closes it
+// Client accepts project and closes it (after payment)
 const acceptProject = async (req, res) => {
     try {
         const userId = req.user._id;
@@ -911,6 +911,22 @@ const acceptProject = async (req, res) => {
             return res.status(400).json({
                 message: 'No deliverables to accept',
                 success: false
+            });
+        }
+
+        // Check if payment is required and completed
+        const PaymentModel = require('../Models/Payment');
+        const payment = await PaymentModel.findOne({
+            projectId: id,
+            status: 'captured',
+            verified: true
+        });
+
+        if (!payment) {
+            return res.status(400).json({
+                message: 'Payment must be completed before accepting the project',
+                success: false,
+                requiresPayment: true
             });
         }
 

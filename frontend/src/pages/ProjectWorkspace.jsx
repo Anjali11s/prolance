@@ -55,12 +55,18 @@ export default function ProjectWorkspace() {
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [reviewComments, setReviewComments] = useState('');
     const [requestingReview, setRequestingReview] = useState(false);
+    const [showMilestoneModal, setShowMilestoneModal] = useState(false);
+    const [showNoteModal, setShowNoteModal] = useState(false);
+
+    // Payment
+    const [paymentDetails, setPaymentDetails] = useState(null);
 
     // Form states
     const [deliverableForm, setDeliverableForm] = useState({ title: '', description: '', fileUrl: '' });
 
     useEffect(() => {
         fetchWorkspace();
+        fetchPaymentDetails();
 
         // Join project room for real-time updates
         if (socketService.isSocketConnected()) {
@@ -218,21 +224,51 @@ export default function ProjectWorkspace() {
     };
 
     const handleAcceptProject = async () => {
-        setAcceptingProject(true);
         try {
             const token = localStorage.getItem('authToken');
-            await axios.post(
+
+            // First try to accept - if payment is required, backend will tell us
+            const response = await axios.post(
                 `${API_BASE_URL}/api/projects/${id}/accept-project`,
                 {},
                 { headers: { Authorization: token } }
             );
+
+            // If successful, refresh workspace
             setShowAcceptModal(false);
-            fetchWorkspace(); // Refresh to show updated status
+            fetchWorkspace();
         } catch (err) {
-            console.error('Error accepting project:', err);
-            setError(err.response?.data?.message || 'Failed to accept project');
-        } finally {
-            setAcceptingProject(false);
+            // Check if payment is required
+            if (err.response?.data?.requiresPayment) {
+                // Navigate to payment page
+                // Get the contract to find the final amount
+                try {
+                    const contractResponse = await axios.get(
+                        `${API_BASE_URL}/api/contracts/my`,
+                        { headers: { Authorization: localStorage.getItem('authToken') } }
+                    );
+
+                    // Find the contract for this project
+                    const projectContract = contractResponse.data.contracts?.find(
+                        c => c.projectId._id === id || c.projectId === id
+                    );
+
+                    const amount = projectContract?.contractDetails?.finalAmount || 0;
+
+                    setShowAcceptModal(false);
+                    navigate(`/payment/${id}`, {
+                        state: { amount }
+                    });
+                } catch (contractErr) {
+                    console.error('Error fetching contract:', contractErr);
+                    setError('Failed to load payment information');
+                    setShowAcceptModal(false);
+                }
+            } else {
+                console.error('Error accepting project:', err);
+                setError(err.response?.data?.message || 'Failed to accept project');
+                setShowAcceptModal(false);
+            }
         }
     };
 
@@ -273,6 +309,24 @@ export default function ProjectWorkspace() {
             }
         } catch (err) {
             console.error('Error adding deliverable:', err);
+        }
+    };
+
+    const fetchPaymentDetails = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await axios.get(
+                `${API_BASE_URL}/api/payments/project/${id}`,
+                { headers: { Authorization: token } }
+            );
+            if (response.data.success) {
+                setPaymentDetails(response.data.payment);
+            }
+        } catch (err) {
+            // Payment not found is ok - means project not yet paid
+            if (err.response?.status !== 404) {
+                console.error('Error fetching payment details:', err);
+            }
         }
     };
 
@@ -322,6 +376,7 @@ export default function ProjectWorkspace() {
     }
 
     const isFreelancer = userRole === 'freelancer';
+    const isClient = userRole === 'client';
     const currentPhaseIndex = WORK_PHASES.findIndex(p => p.key === project.workStatus);
 
     return (
@@ -431,6 +486,61 @@ export default function ProjectWorkspace() {
 
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-6">
+                        {/* Payment Receipt - Show when project is closed and payment exists */}
+                        {project.status === 'closed' && paymentDetails && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border-2 border-green-200 p-6 shadow-sm"
+                            >
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-lg font-semibold text-green-800">
+                                                {isClient ? 'Payment Done Successfully' : 'Payment Received Successfully'}
+                                            </h2>
+                                            <p className="text-sm text-green-700 font-light">
+                                                {isClient ? 'Payment completed • Project closed' : 'Transaction completed • Project closed'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-2xl font-bold text-green-800">₹{paymentDetails.amount?.toLocaleString('en-IN')}</p>
+                                        <p className="text-xs text-green-600 font-light">
+                                            {isClient ? 'Amount paid' : 'Amount received'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-green-200">
+                                    <div>
+                                        <p className="text-xs text-green-700 font-light mb-1">Transaction ID</p>
+                                        <p className="text-sm font-mono text-green-900">{paymentDetails.razorpayPaymentId || 'Processing...'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-green-700 font-light mb-1">Payment Date</p>
+                                        <p className="text-sm text-green-900">{formatDate(paymentDetails.capturedAt || paymentDetails.createdAt)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-green-700 font-light mb-1">Payment Method</p>
+                                        <p className="text-sm text-green-900 capitalize">{paymentDetails.paymentMethod || 'Online Payment'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-green-200 flex items-center gap-2 text-sm text-green-700">
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                    </svg>
+                                    <span className="font-light">This project has been successfully completed and payment has been processed.</span>
+                                </div>
+                            </motion.div>
+                        )}
+
                         {/* Deliverables */}
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
@@ -442,7 +552,12 @@ export default function ProjectWorkspace() {
                                 {isFreelancer && (
                                     <button
                                         onClick={() => setShowDeliverableModal(true)}
-                                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-green-600 border border-green-600 rounded-lg hover:bg-green-50 transition font-light"
+                                        disabled={project.status === 'closed'}
+                                        className={`flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition font-light ${project.status === 'closed'
+                                            ? 'text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed'
+                                            : 'text-green-600 border border-green-600 hover:bg-green-50 cursor-pointer'
+                                            }`}
+                                        title={project.status === 'closed' ? 'Project is closed' : 'Upload a new deliverable'}
                                     >
                                         <HiOutlinePlus size={16} />
                                         Upload Deliverable
@@ -485,8 +600,12 @@ export default function ProjectWorkspace() {
                                                     {isFreelancer && (
                                                         <button
                                                             onClick={() => handleDeleteDeliverable(deliverable._id)}
-                                                            className="p-2 text-red-500 hover:bg-red-50 rounded transition"
-                                                            title="Delete deliverable"
+                                                            disabled={project.status === 'closed'}
+                                                            className={`p-2 rounded transition ${project.status === 'closed'
+                                                                ? 'text-gray-400 cursor-not-allowed'
+                                                                : 'text-red-500 hover:bg-red-50'
+                                                                }`}
+                                                            title={project.status === 'closed' ? 'Project is closed' : 'Delete deliverable'}
                                                         >
                                                             <HiOutlineTrash size={18} />
                                                         </button>
@@ -520,7 +639,7 @@ export default function ProjectWorkspace() {
                                             className="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-light py-3 px-4 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm flex items-center justify-center gap-2"
                                         >
                                             <HiOutlineCheck size={20} />
-                                            Accept & Close
+                                            Accept & Pay
                                         </button>
                                     </div>
                                     <p className="text-xs text-gray-500 font-light mt-3 text-center">
@@ -548,17 +667,22 @@ export default function ProjectWorkspace() {
                                         const isCompleted = index <= currentPhaseIndex;
                                         const isCurrent = index === currentPhaseIndex;
                                         const canRollback = index < currentPhaseIndex;
+                                        const isProjectClosed = project.status === 'closed';
 
                                         return (
                                             <button
                                                 key={phase.key}
                                                 onClick={() => handlePhaseClickWithValidation(phase, index)}
-                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all duration-200 ${isCurrent
-                                                    ? 'bg-gradient-to-r from-green-50 to-green-50/50 border-green-200 shadow-sm'
-                                                    : isCompleted
-                                                        ? 'bg-green-50/40 border-green-100 hover:bg-green-50/60'
-                                                        : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
-                                                    } cursor-pointer group`}
+                                                disabled={isProjectClosed}
+                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all duration-200 ${isProjectClosed
+                                                    ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+                                                    : isCurrent
+                                                        ? 'bg-gradient-to-r from-green-50 to-green-50/50 border-green-200 shadow-sm'
+                                                        : isCompleted
+                                                            ? 'bg-green-50/40 border-green-100 hover:bg-green-50/60'
+                                                            : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+                                                    } ${isProjectClosed ? '' : 'cursor-pointer'} group`}
+                                                title={isProjectClosed ? 'Project is closed' : ''}
                                             >
                                                 {/* Radix UI Checkbox */}
                                                 <Checkbox
@@ -598,7 +722,7 @@ export default function ProjectWorkspace() {
                                 </div>
 
                                 {/* Submit Work Button - Only show when completed with deliverables */}
-                                {project.workStatus === 'completed' && project.deliverables?.length > 0 && project.status !== 'completed' && (
+                                {project.workStatus === 'completed' && project.deliverables?.length > 0 && project.status !== 'completed' && project.status !== 'closed' && (
                                     <div className="mt-5">
                                         <button
                                             onClick={() => setShowSubmitModal(true)}
@@ -795,10 +919,9 @@ export default function ProjectWorkspace() {
                         animate={{ opacity: 1, scale: 1 }}
                         className="bg-white rounded-lg max-w-md w-full p-6"
                     >
-                        <h3 className="text-lg font-light text-gray-800 mb-3">Accept & Close Project</h3>
+                        <h3 className="text-lg font-light text-gray-800 mb-3">Accept & Pay for Project</h3>
                         <p className="text-sm text-gray-600 font-light mb-6">
-                            Are you sure you want to accept the deliverables and close this project?
-                            This action will finalize the project and mark it as successfully completed.
+                            You'll be redirected to make a secure payment. After successful payment, the project will be closed and marked as completed.
                         </p>
                         <div className="flex gap-3">
                             <button

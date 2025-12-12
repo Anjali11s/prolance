@@ -116,7 +116,7 @@ export default function ContractCard({ contract, onUpdate }) {
 ${contract.contractDetails.scope}
 
 3. FINANCIALS:
-The agreed consideration for the services is between INR ${contract.contractDetails.budget.min.toLocaleString()} and INR ${contract.contractDetails.budget.max.toLocaleString()}.
+The agreed consideration for the services is INR ${contract.contractDetails.finalAmount.toLocaleString()}.
 
 4. TIMELINE:
 The duration of the project shall be ${contract.contractDetails.duration}, commencing from ${new Date(contract.contractDetails.startDate).toLocaleDateString()}.
@@ -238,9 +238,9 @@ ${contract.contractDetails.paymentTerms}`;
 
                 <div className="grid grid-cols-2 gap-3">
                     <div>
-                        <p className="text-xs text-gray-500 font-light mb-1">Budget</p>
+                        <p className="text-xs text-gray-500 font-light mb-1">Project Amount</p>
                         <p className="text-sm font-normal text-gray-800">
-                            ₹{contract.contractDetails.budget.min.toLocaleString()} - ₹{contract.contractDetails.budget.max.toLocaleString()}
+                            ₹{contract.contractDetails.finalAmount.toLocaleString()}
                         </p>
                     </div>
                     <div>

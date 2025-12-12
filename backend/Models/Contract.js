@@ -38,19 +38,13 @@ const ContractSchema = new mongoose.Schema({
         deliverables: [{
             type: String
         }],
-        budget: {
-            min: {
-                type: Number,
-                required: true
-            },
-            max: {
-                type: Number,
-                required: true
-            },
-            currency: {
-                type: String,
-                default: 'INR'
-            }
+        finalAmount: {
+            type: Number,
+            required: true
+        },
+        currency: {
+            type: String,
+            default: 'INR'
         },
         duration: {
             type: String,
@@ -70,6 +64,20 @@ const ContractSchema = new mongoose.Schema({
             dueDate: Date,
             payment: Number
         }]
+    },
+    paymentRequired: {
+        type: Boolean,
+        default: true
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'completed', 'failed'],
+        default: 'pending'
+    },
+    paymentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'payments',
+        default: null
     },
     status: {
         type: String,

@@ -19,6 +19,7 @@ const ApplicationRouter = require('./Routes/ApplicationRouter')
 const ChatRouter = require('./Routes/ChatRouter')
 const ContractRouter = require('./Routes/ContractRouter')
 const AdminRouter = require('./Routes/AdminRouter')
+const PaymentRouter = require('./Routes/PaymentRouter')
 const MessageModel = require('./Models/Message')
 const ConversationModel = require('./Models/Conversation')
 
@@ -57,6 +58,9 @@ app.use(cors({
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
+// Razorpay webhook - must be before other routes (raw body needed)
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }), PaymentRouter);
+
 app.use('/auth', AuthRouter)
 app.use('/api/users', UserRouter)
 app.use('/api/projects', ProjectRouter)
@@ -67,6 +71,7 @@ app.use('/api/applications', ApplicationRouter)
 app.use('/api/chat', ChatRouter)
 app.use('/api/contracts', ContractRouter)
 app.use('/api/admin', AdminRouter)
+app.use('/api/payments', PaymentRouter)
 
 
 // Create HTTP server and Socket.IO

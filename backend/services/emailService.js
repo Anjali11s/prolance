@@ -7,7 +7,7 @@ const transporter = nodemailer.createTransport({
     secure: false, // true for 465, false for other ports
     auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        pass: (process.env.EMAIL_PASS || '').replace(/\s/g, '') // Remove any spaces from app password
     },
     // Add timeout and connection settings for cloud environments
     connectionTimeout: 10000, // 10 seconds
@@ -19,24 +19,22 @@ const transporter = nodemailer.createTransport({
     maxMessages: 10,
     // TLS options
     tls: {
-        rejectUnauthorized: true,
-        minVersion: 'TLSv1.2'
+        rejectUnauthorized: false // Changed to false for better compatibility
     },
-    // Debug logs (remove in production)
-    // logger: process.env.NODE_ENV !== 'production',
-    // debug: process.env.NODE_ENV !== 'production'
+    // Debug logs
+    logger: false,
+    debug: false
 });
 
-// Verify transporter configuration (skip in production to avoid startup delays)
-if (process.env.NODE_ENV !== 'production') {
-    transporter.verify((error, success) => {
-        if (error) {
-            console.log('Email server connection error:', error);
-        } else {
-            console.log('Email server is ready to send messages');
-        }
-    });
-}
+// Verify transporter configuration on startup
+transporter.verify((error, success) => {
+    if (error) {
+        console.error('Email server connection error:', error.message);
+        console.error('Please check your EMAIL_USER and EMAIL_PASS in .env file');
+    } else {
+        console.log('Email server is ready to send messages');
+    }
+});
 
 // Send OTP email
 const sendOTPEmail = async (email, name, otp) => {

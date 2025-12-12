@@ -54,6 +54,8 @@ const getUserById = async (req, res) => {
 const getUserByUsername = async (req, res) => {
     try {
         const { username } = req.params;
+        const viewerId = req.user?._id; // May be undefined for non-authenticated users
+
         const user = await UserModel.findOne({ username: username.toLowerCase() }).select('-password -email -phone');
 
         if (!user) {
@@ -61,6 +63,14 @@ const getUserByUsername = async (req, res) => {
                 message: 'User not found',
                 success: false
             });
+        }
+
+        // Increment profile views if viewer is not the profile owner
+        if (!viewerId || viewerId.toString() !== user._id.toString()) {
+            await UserModel.findByIdAndUpdate(
+                user._id,
+                { $inc: { profileViews: 1 } }
+            );
         }
 
         res.status(200).json({
@@ -230,6 +240,7 @@ const searchFreelancers = async (req, res) => {
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
+                { username: { $regex: search, $options: 'i' } },
                 { bio: { $regex: search, $options: 'i' } }
             ];
         }

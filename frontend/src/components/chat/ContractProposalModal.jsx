@@ -10,10 +10,9 @@ export default function ContractProposalModal({ conversation, application, onClo
         title: conversation.projectId?.title || '',
         scope: '',
         deliverables: [''],
-        budgetMin: 0,
-        budgetMax: 0,
+        finalAmount: 0,
         duration: '',
-        paymentTerms: 'Milestone-based',
+        paymentTerms: 'Full payment on completion',
         startDate: new Date().toISOString().split('T')[0]
     });
     const [loading, setLoading] = useState(false);
@@ -35,11 +34,12 @@ export default function ContractProposalModal({ conversation, application, onClo
 
                 if (response.data.application) {
                     const app = response.data.application;
+                    // Use the max budget as the final amount (or average)
+                    const finalAmount = app.proposedBudget?.max || app.proposedBudget?.min || 0;
                     setFormData(prev => ({
                         ...prev,
                         scope: app.coverLetter || '',
-                        budgetMin: app.proposedBudget?.min || 0,
-                        budgetMax: app.proposedBudget?.max || 0,
+                        finalAmount: finalAmount,
                         duration: app.proposedDuration || ''
                     }));
                 }
@@ -84,11 +84,8 @@ export default function ContractProposalModal({ conversation, application, onClo
                         title: formData.title,
                         scope: formData.scope,
                         deliverables: formData.deliverables.filter(d => d.trim() !== ''),
-                        budget: {
-                            min: Number(formData.budgetMin),
-                            max: Number(formData.budgetMax),
-                            currency: 'INR'
-                        },
+                        finalAmount: Number(formData.finalAmount),
+                        currency: 'INR',
                         duration: formData.duration,
                         paymentTerms: formData.paymentTerms,
                         startDate: new Date(formData.startDate)
@@ -194,28 +191,20 @@ export default function ContractProposalModal({ conversation, application, onClo
                                 ))}
                             </div>
 
-                            {/* Budget */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Min Budget (₹)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.budgetMin}
-                                        onChange={(e) => setFormData({ ...formData, budgetMin: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-light"
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Budget (₹)</label>
-                                    <input
-                                        type="number"
-                                        value={formData.budgetMax}
-                                        onChange={(e) => setFormData({ ...formData, budgetMax: e.target.value })}
-                                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-light"
-                                        required
-                                    />
-                                </div>
+                            {/* Fixed Amount */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    value={formData.finalAmount}
+                                    onChange={(e) => setFormData({ ...formData, finalAmount: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-light"
+                                    placeholder="Enter fixed project amount"
+                                    min="0"
+                                    step="100"
+                                    required
+                                />
+                                <p className="text-xs text-gray-500 mt-1 font-light">This is the total fixed amount that will be paid for this project</p>
                             </div>
 
                             {/* Duration & Start Date */}

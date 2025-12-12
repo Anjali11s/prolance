@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ensureAuthenticated = require('../Middlewares/Auth');
+const optionalAuth = require('../Middlewares/OptionalAuth');
 const {
     getProfile,
     getUserById,
@@ -23,7 +24,7 @@ router.delete('/portfolio/:itemId', ensureAuthenticated, removePortfolioItem);
 
 // Public routes
 router.get('/search', searchFreelancers);
-router.get('/username/:username', getUserByUsername);
+router.get('/username/:username', optionalAuth, getUserByUsername);
 router.get('/:id', getUserById);
 
 module.exports = router;

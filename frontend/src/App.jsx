@@ -16,6 +16,8 @@ import UserProfile from './pages/UserProfile'
 import Support from './pages/Support'
 import Chat from './pages/Chat'
 import ProjectWorkspace from './pages/ProjectWorkspace'
+import PaymentPage from './pages/PaymentPage'
+import PaymentHistory from './pages/PaymentHistory'
 import AdminDashboard from './components/ui/adminDashboard'
 import ProtectedRoute from './components/ProtectedRoute'
 import ClientRoute from './components/ClientRoute'
@@ -148,6 +150,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment/:projectId"
+            element={
+              <ProtectedRoute>
+                <PaymentPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment-history"
+            element={
+              <ProtectedRoute>
+                <PaymentHistory />
               </ProtectedRoute>
             }
           />

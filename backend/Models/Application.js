@@ -50,7 +50,7 @@ ApplicationSchema.index({ projectId: 1, createdAt: -1 });
 ApplicationSchema.index({ freelancerId: 1, createdAt: -1 });
 ApplicationSchema.index({ status: 1 });
 
-// Ensure a freelancer can only apply once per project
+// Ensure a freelancer can only apply once per project (unique already creates index)
 ApplicationSchema.index({ projectId: 1, freelancerId: 1 }, { unique: true });
 
 const ApplicationModel = mongoose.model('applications', ApplicationSchema);

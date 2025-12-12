@@ -31,7 +31,15 @@ export default function UserProfile() {
             setError(null);
             console.log('Fetching profile for username:', username);
             console.log('API URL:', `${API_URL}/api/users/username/${username}`);
-            const response = await axios.get(`${API_URL}/api/users/username/${username}`);
+
+            // Include auth token if available to prevent counting own views
+            const token = localStorage.getItem('authToken');
+            const headers = token ? { Authorization: token } : {};
+
+            const response = await axios.get(
+                `${API_URL}/api/users/username/${username}`,
+                { headers }
+            );
             console.log('Profile response:', response.data);
             setUser(response.data.user);
         } catch (err) {
