@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { HiOutlineChevronLeft, HiOutlineDocumentText } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
+import { HiOutlineChevronLeft, HiOutlineDocumentText, HiOutlinePaperClip } from 'react-icons/hi';
 import { CiCircleInfo } from "react-icons/ci";
 import axios from 'axios';
 import socketService from '../../services/socketService';
@@ -34,12 +35,15 @@ export default function ChatWindow({ conversation, onBack }) {
         socketService.onNewMessage(handleNewMessage);
         socketService.onUserTyping(handleUserTyping);
 
-
-
         // Listen for contract events (real-time updates)
         const handleContractProposed = ({ contract, conversationId }) => {
             if (conversationId === conversation._id) {
-                setContracts(prev => [contract, ...prev]);
+                // Check if contract already exists to prevent duplicates
+                setContracts(prev => {
+                    const exists = prev.some(c => c._id === contract._id);
+                    if (exists) return prev;
+                    return [contract, ...prev];
+                });
                 // Auto-show contracts when a new one is proposed
                 setShowContracts(true);
             }
@@ -63,6 +67,11 @@ export default function ChatWindow({ conversation, onBack }) {
             socketService.offContractUpdated(handleContractUpdated);
         };
     }, [conversation._id]);
+
+    useEffect(() => {
+        // Scroll to bottom when messages change
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const fetchMessages = async () => {
         try {
@@ -115,7 +124,6 @@ export default function ChatWindow({ conversation, onBack }) {
             }
         }
     };
-
 
     const formatMessageTime = (date) => {
         return new Date(date).toLocaleTimeString('en-US', {
@@ -171,55 +179,52 @@ export default function ChatWindow({ conversation, onBack }) {
     if (loading) {
         return (
             <div className="h-full flex items-center justify-center">
-                <div className="inline-block w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="inline-block w-6 h-6 border-2 border-green-600 dark:border-green-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
     }
 
     return (
         <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="border-b border-gray-100 px-6 py-4 flex items-center gap-3 flex-shrink-0">
+            {/* Header - Clean & Minimal */}
+            <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-3 flex items-center gap-3 flex-shrink-0 bg-white dark:bg-gray-800">
                 <button
                     onClick={onBack}
-                    className="md:hidden p-1 hover:bg-gray-100 rounded-lg transition cursor-pointer"
+                    className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
                 >
-                    <HiOutlineChevronLeft size={20} className="text-gray-600" />
+                    <HiOutlineChevronLeft size={20} className="text-gray-600 dark:text-gray-400" />
                 </button>
-
-                {otherUser?.avatar ? (
-                    <img
-                        src={otherUser.avatar}
-                        alt={otherUser.name}
-                        referrerPolicy="no-referrer"
-                        className="w-10 h-10 rounded-full object-cover border border-gray-200"
-                    />
-                ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-light border border-gray-200">
-                        {otherUser?.name?.charAt(0).toUpperCase()}
-                    </div>
-                )}
-
-                <div className="text-left flex-1 min-w-0 flex items-center gap-2">
-                    <div className="flex-1">
-                        <h2 className="text-base font-normal text-gray-800 truncate">{otherUser?.name}</h2>
-                        <p className="text-xs text-gray-500 font-light truncate">
-                            {conversation.projectId?.title}
-                        </p>
-                    </div>
-                    {contracts.length > 0 && (
-                        <button
-                            onClick={() => setShowContracts(!showContracts)}
-                            className={`p-2 rounded-lg transition ${showContracts
-                                ? 'bg-green-50 text-green-600'
-                                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                                }`}
-                            title={showContracts ? "Hide Bond Papers" : "View Bond Papers"}
-                        >
-                            <CiCircleInfo size={22} />
-                        </button>
+                <Link to={`/user/${otherUser.username}`}>
+                    {otherUser?.avatar ? (
+                        <img
+                            src={otherUser.avatar}
+                            alt={otherUser.name}
+                            referrerPolicy="no-referrer"
+                            className="w-9 h-9 rounded-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-400 text-sm font-medium">
+                            {otherUser?.name?.charAt(0).toUpperCase()}
+                        </div>
                     )}
+                </Link>
+
+                <div className="flex-1 min-w-0">
+                    <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{otherUser?.name}</h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {conversation.projectId?.title}
+                    </p>
                 </div>
+
+                {contracts.length > 0 && (
+                    <button
+                        onClick={() => setShowContracts(true)}
+                        className="p-2 rounded-lg transition text-green-500 dark:text-green-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        title="View Contracts"
+                    >
+                        <CiCircleInfo size={20} />
+                    </button>
+                )}
 
                 {/* Propose Contract Button - Freelancers only */}
                 {isFreelancer && conversation.applicationId && (() => {
@@ -228,91 +233,146 @@ export default function ChatWindow({ conversation, onBack }) {
                         <button
                             onClick={() => setShowContractModal(true)}
                             disabled={hasAcceptedContract}
-                            className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition font-light ${hasAcceptedContract
-                                ? 'text-gray-400 bg-gray-50 border border-gray-200 cursor-not-allowed opacity-60'
-                                : 'text-green-700 bg-green-50 border border-green-200 hover:bg-green-100 cursor-pointer'
+                            className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition ${hasAcceptedContract
+                                ? 'text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 cursor-not-allowed'
+                                : 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30'
                                 }`}
                             title={hasAcceptedContract ? "Contract already accepted" : "Propose a new contract"}
                         >
-                            <HiOutlineDocumentText size={16} />
-                            {hasAcceptedContract ? 'Contract Accepted' : 'Propose Contract'}
+                            <HiOutlineDocumentText size={14} />
+                            {hasAcceptedContract ? 'Accepted' : 'Propose Contract'}
                         </button>
                     );
                 })()}
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-                {/* Contracts - Only show when showContracts is true */}
-                {showContracts && contracts.map(contract => (
-                    <ContractCard
-                        key={contract._id}
-                        contract={contract}
-                        onUpdate={(updatedContract) => {
-                            setContracts(prev => prev.map(c => c._id === updatedContract._id ? updatedContract : c));
-                        }}
-                    />
-                ))}
+            {/* Messages Area - Fixed height, scrollable */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 bg-gray-50 dark:bg-black">
+                {/* Messages */}
+                <div className="space-y-3">
+                    {groupMessagesByDate().map((item, index) => {
+                        if (item.type === 'date') {
+                            return (
+                                <div key={`date-${index}`} className="flex justify-center my-4">
+                                    <span className="px-3 py-1 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs rounded-full border border-gray-200 dark:border-gray-700">
+                                        {formatMessageDate(item.date)}
+                                    </span>
+                                </div>
+                            );
+                        }
 
-                {groupMessagesByDate().map((item, index) => {
-                    if (item.type === 'date') {
-                        return (
-                            <div key={`date-${index}`} className="flex justify-center my-4">
-                                <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs rounded-full font-light">
-                                    {formatMessageDate(item.date)}
-                                </span>
-                            </div>
-                        );
-                    }
+                        const message = item.data;
 
-                    const message = item.data;
-                    const isMine = message.senderId._id === user?.userId;
-
-                    return (
-                        <div
-                            key={message._id}
-                            className={`flex ${isMine ? 'justify-end' : 'justify-start'} group`}
-                        >
-                            <div className={`max-w-[70%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
-                                <div className="flex items-start gap-2">
-                                    <div
-                                        className={`px-4 py-2.5 rounded-2xl ${isMine
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-gray-100 text-gray-800'
-                                            }`}
-                                    >
-                                        <p className="text-sm font-light whitespace-pre-wrap break-words">
+                        // System messages - Compact one-liner with time
+                        if (message.messageType === 'system') {
+                            return (
+                                <div key={message._id} className="flex flex-col items-center my-3">
+                                    {/* Time above banner - WhatsApp style */}
+                                    <p className="text-xs text-gray-400 dark:text-gray-500 font-light mb-1">
+                                        {formatMessageTime(message.createdAt)}
+                                    </p>
+                                    {/* Banner */}
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 px-3 py-1.5 rounded-md">
+                                        <p className="text-xs text-gray-700 dark:text-gray-300 font-light">
                                             {message.content}
                                         </p>
                                     </div>
-
                                 </div>
-                                <span className="text-xs text-gray-400 font-light mt-1 px-1">
-                                    {formatMessageTime(message.createdAt)}
-                                </span>
+                            );
+                        }
+
+                        // Regular user messages - Clean bubbles
+                        const isMine = message.senderId?._id === user?.userId;
+
+                        return (
+                            <div
+                                key={message._id}
+                                className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+                            >
+                                <div className={`max-w-[75%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
+                                    <div
+                                        className={`px-4 py-2 rounded-2xl ${isMine
+                                            ? 'bg-green-600 dark:bg-green-500 text-white rounded-br-sm'
+                                            : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700 rounded-bl-sm'
+                                            }`}
+                                    >
+                                        <p className="text-sm whitespace-pre-wrap break-words">
+                                            {message.content}
+                                        </p>
+                                    </div>
+                                    <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 px-1">
+                                        {formatMessageTime(message.createdAt)}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* Typing Indicator */}
+                    {otherUserTyping && (
+                        <div className="flex justify-start">
+                            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-4 py-3 rounded-2xl rounded-bl-sm">
+                                <div className="flex gap-1">
+                                    <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                    <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                    <span className="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                </div>
                             </div>
                         </div>
-                    );
-                })}
+                    )}
 
-                {/* Typing Indicator */}
-                {otherUserTyping && (
-                    <div className="flex justify-start">
-                        <div className="bg-gray-100 px-4 py-2.5 rounded-2xl">
-                            <div className="flex gap-1">
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                <div ref={messagesEndRef} />
+                    <div ref={messagesEndRef} />
+                </div>
             </div>
 
-            {/* Message Input */}
-            <MessageInput conversationId={conversation._id} />
+            {/* Message Input - Clean & Fixed at bottom */}
+            <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800">
+                <MessageInput conversationId={conversation._id} />
+            </div>
+
+            {/* Contracts Modal */}
+            {showContracts && (
+                <div className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-gray-900 rounded-lg max-w-3xl w-full max-h-[85vh] overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="border-b border-gray-100 dark:border-gray-800 px-6 py-4 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Contracts</h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{conversation.projectId?.title}</p>
+                            </div>
+                            <button
+                                onClick={() => setShowContracts(false)}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                                title="Close"
+                            >
+                                <HiOutlineChevronLeft size={20} className="text-gray-600 dark:text-gray-400" />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-6 overflow-y-auto max-h-[calc(85vh-80px)]">
+                            {contracts.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <HiOutlineDocumentText className="w-12 h-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">No contracts yet</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {contracts.map(contract => (
+                                        <ContractCard
+                                            key={contract._id}
+                                            contract={contract}
+                                            onUpdate={(updatedContract) => {
+                                                setContracts(prev => prev.map(c => c._id === updatedContract._id ? updatedContract : c));
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Contract Proposal Modal */}
             {showContractModal && conversation.applicationId && (
@@ -322,8 +382,8 @@ export default function ChatWindow({ conversation, onBack }) {
                     onClose={() => setShowContractModal(false)}
                     onSuccess={(contract) => {
                         setContracts(prev => [contract, ...prev]);
-                        setShowContracts(true); // Auto-show contracts when proposed
-                        setShowContractModal(false); // Close modal
+                        setShowContracts(true);
+                        setShowContractModal(false);
                     }}
                 />
             )}
